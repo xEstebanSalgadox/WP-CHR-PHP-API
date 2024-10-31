@@ -94,3 +94,20 @@ function book_reader_get_books($request) {
         'purchased_products' => $purchased_books
     ], 200);
 }
+
+function custom_redirect_button() {
+    // Verifica si el usuario está registrado
+    if (is_user_logged_in()) {
+        // URL para usuarios registrados
+        $url = home_url('/pagina-registrados/');
+    } else {
+        // URL para usuarios no registrados
+        $url = home_url('/pagina-no-registrados/');
+    }
+
+    // Devuelve el botón HTML con la URL correspondiente
+    return '<button onclick="window.location.href=\'' . esc_url($url) . '\';" class="custom-button">Ir a la página</button>';
+}
+
+// Registra el shortcode
+add_shortcode('custom_redirect_button', 'custom_redirect_button');
