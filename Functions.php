@@ -95,19 +95,28 @@ function book_reader_get_books($request) {
     ], 200);
 }
 
-function custom_redirect_button() {
-    // Verifica si el usuario está registrado
-    if (is_user_logged_in()) {
-        // URL para usuarios registrados
-        $url = home_url('/pagina-registrados/');
-    } else {
-        // URL para usuarios no registrados
-        $url = home_url('/pagina-no-registrados/');
+//******************************************************************************//
+function block_language_slugs_direct_access() {
+    // Obtener la ruta de la URL actual
+    $uri = $_SERVER['REQUEST_URI'];
+    $uri = rtrim($uri, '/');  // Limpiar la barra al final si existe
+    $uri_segments = explode('/', trim($uri, '/'));
+
+    // Lista de slugs a bloquear acceso directo
+    $blocked_slugs = ['es', 'en'];
+
+    // Verificar si el primer segmento de la URL está en la lista de bloqueados
+    if (in_array($uri_segments[0], $blocked_slugs) && count($uri_segments) === 1) {
+        // Mostrar la página 404 si solo se accede al slug bloqueado
+        get_header();
+        global $wp_query;
+        $wp_query->set_404();
+        status_header(404);
+        get_template_part('template-parts/404');  // Usa el path correcto a la plantilla 404 dentro de template-parts
+		get_footer();
+        exit();
     }
-
-    // Devuelve el botón HTML con la URL correspondiente
-    return '<button onclick="window.location.href=\'' . esc_url($url) . '\';" class="custom-button">Ir a la página</button>';
 }
+add_action('template_redirect', 'block_language_slugs_direct_access');
 
-// Registra el shortcode
-add_shortcode('custom_redirect_button', 'custom_redirect_button');
+
