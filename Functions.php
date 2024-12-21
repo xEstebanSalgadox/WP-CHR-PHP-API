@@ -254,18 +254,44 @@ add_action('validate_registration', 'validar_captcha_wpum', 10, 2);
 
 
 
+
 /******************************************************************************************************************************************************************
  *
- * NO MOVER LAS SIGUIENTES LINEAS, SON PARA DAR FUNCIONALIDAD A LA API DE AUTENTIFICACIÓNCONECTIVIDAD EN MAILER LITE/
+ * NO MOVER LAS SIGUIENTES LINEAS, SON PARA DAR FUNCIONALIDAD AL CARRITO PARA QUE APAREZCA EL BOTON DE TARJETA DE CREDITO
  * FIRMADO: ESTEBAN SALGADO
  * 
  ******************************************************************************************************************************************************************/
-function agregar_boton_compra_credito_en_carrito() {
-    echo '<form action="' . esc_url( wc_get_checkout_url() ) . '" method="post">';
-    // Este campo es opcional y su implementación depende de si el plugin lo permite.
-    echo '<input type="hidden" name="payment_method" value="paypal" />';
-    echo '<button type="submit" class="button alt">Comprar con tarjeta de crédito</button>';
-    echo '</form>';
+
+
+
+add_action('woocommerce_after_cart_totals', 'add_paypal_and_card_buttons');
+
+function add_paypal_and_card_buttons() {
+    ?>
+    <div id="paypal-button-container"></div>
+    <div id="card-button-container"></div>
+
+    <script>
+        paypal.Buttons({
+            createOrder: function(data, actions) {
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: {
+                            value: '0.01' // Este valor debe ser dinámico
+                        }
+                    }]
+                });
+            },
+            onApprove: function(data, actions) {
+                return actions.order.capture().then(function(details) {
+                    alert('Transaction completed by ' + details.payer.name.given_name);
+                });
+            }
+        }).render('#paypal-button-container');
+
+        // Configuración adicional para los campos de tarjeta
+    </script>
+    <?php
 }
 
-add_action('woocommerce_after_cart_table', 'agregar_boton_compra_credito_en_carrito');
+
