@@ -150,7 +150,7 @@ function custom_add_to_cart_validation( $passed, $product_id, $quantity, $variat
     $in_cart = WC()->cart->find_product_in_cart( $product_cart_id );
 
     if ( $in_cart ) {
-        wc_add_notice( sprintf( __( 'You have bought a unique product to read online and/or download it, so is not necesary to add another one. <a href="%s" class="button wc-forward">View cart</a>', 'text-domain' ), wc_get_cart_url() ), 'error' );
+        wc_add_notice( sprintf( __( 'This product is already in your cart. <a href="%s" class="button wc-forward">View cart</a>', 'text-domain' ), wc_get_cart_url() ), 'error' );
         return false;
     }
 
@@ -221,36 +221,42 @@ function custom_thank_you_page_redirect( $order_id ) {
     }
 }
 
-// CAPTCHA
-// Función para generar el CAPTCHA
-function validar_captcha_wpum($errors, $values) {
-    if (!session_id()) {
-        session_start();
-    }
+// // CAPTCHA
+// // Función para validar el CAPTCHA en el registro
+// function validar_captcha_wpum($errors, $values) {
+//     if (!session_id()) {
+//         session_start();
+//     }
+// 	echo $_SESSION['captcha_prefix'];
 
-    // Asumiendo que el campo del CAPTCHA se llama 'captcha_code' y que los datos del CAPTCHA están en la sesión
-    if (isset($_POST['captcha_code'], $_SESSION['captcha_prefix'])) {
-        require_once(plugin_dir_path(__FILE__) . 'path/to/really-simple-captcha/really-simple-captcha.php');
-        $captcha_instance = new ReallySimpleCaptcha();
+//     if (isset($_POST['captcha_code'], $_SESSION['captcha_prefix'])) {
+//         require_once(plugin_dir_path(__FILE__) . 'path/to/really-simple-captcha/really-simple-captcha.php');
+//         $captcha_instance = new ReallySimpleCaptcha();
 
-        // Verificación del CAPTCHA
-        $correct = $captcha_instance->check($_SESSION['captcha_prefix'], $_POST['captcha_code']);
+//         // Verificación en minúsculas para evitar problemas de mayúsculas/minúsculas
+//         $correct = strtolower($captcha_instance->check($_SESSION['captcha_prefix'], $_POST['captcha_code'])) === strtolower($_POST['captcha_code']);
 
-        // Elimina el archivo de imagen del CAPTCHA independientemente de si es correcto o no
-        $captcha_instance->remove($_SESSION['captcha_prefix']);
+//         // Log para depuración
+//         echo 'CAPTCHA Code Submitted: ' . ($_POST['captcha_code'] ?? 'not set');
 
-        if (!$correct) {
-            $errors->add('invalid_captcha', 'The CAPTCHA code entered was incorrect. Please try again.');
-        }
+//         // Elimina los archivos temporales
+//         $captcha_instance->remove($_SESSION['captcha_prefix']);
 
-        // Limpia los datos de CAPTCHA de la sesión
-        unset($_SESSION['captcha_word'], $_SESSION['captcha_prefix']);
-    } else {
-        $errors->add('empty_captcha', 'CAPTCHA code is required.');
-    }
-}
+//         if (!$correct) {
+//             $errors->add('invalid_captcha', __('The CAPTCHA code entered was incorrect. Please try again.', 'your-text-domain'));
+//         }
 
-add_action('validate_registration', 'validar_captcha_wpum', 10, 2);
+//         // Limpia la sesión
+//         unset($_SESSION['captcha_word'], $_SESSION['captcha_prefix']);
+//     } else {
+//         $errors->add('empty_captcha', __('CAPTCHA code is required.', 'your-text-domain'));
+//     }
+
+//     return $errors;
+// }
+
+// add_action('wpum_before_user_registration_validation', 'validar_captcha_wpum', 10, 2);
+
 
 
 
@@ -263,10 +269,12 @@ add_action('validate_registration', 'validar_captcha_wpum', 10, 2);
  ******************************************************************************************************************************************************************/
 
 
-
+add_action('woocommerce_after_add_to_cart_button', 'add_paypal_and_card_buttons');
 add_action('woocommerce_after_cart_totals', 'add_paypal_and_card_buttons');
 
 function add_paypal_and_card_buttons() {
+    global $woocommerce;
+    $total = $woocommerce->cart->total;
     ?>
     <div id="paypal-button-container"></div>
     <div id="card-button-container"></div>
@@ -277,7 +285,7 @@ function add_paypal_and_card_buttons() {
                 return actions.order.create({
                     purchase_units: [{
                         amount: {
-                            value: '0.01' // Este valor debe ser dinámico
+                            value: '<?php echo $total; ?>' // Valor dinámico basado en el total del carrito
                         }
                     }]
                 });
@@ -295,3 +303,63 @@ function add_paypal_and_card_buttons() {
 }
 
 
+
+// function add_languages_to_products() {
+//     global $product;
+//     $languages = get_post_meta( $product->get_id(), 'languages', true );
+//     if ( ! empty($languages) ) {
+//         echo '<p class="product-languages">Idiomas: ' . esc_html($languages) . '</p>';
+//     }
+// }
+
+add_action( 'woocommerce_shop_loop_item_title', 'add_languages_to_products', 23 );
+function add_languages_to_products() {
+    global $product;
+    $languages = get_post_meta( $product->get_id(), 'languages', true );
+    if ( ! empty($languages) ) {
+        $languages_array = explode(',', $languages);
+		echo '<div class="product-flags" style="margin-bottom: 0px">';
+        foreach ($languages_array as $language) {
+            $image_url = "https://championsrenaissance.com/wp-content/uploads/2025/01/". $language. ".png";
+            echo '<img src="' . esc_url($image_url) . '" alt="' . esc_attr($language) . '"/>';
+        }
+		echo '</div>';
+    }
+	echo '<div style="height: 18px;"></div>';
+}
+
+// add_action( 'woocommerce_shop_loop_item_title', 'add_moreinfo_to_products', 1 );
+// function add_moreinfo_to_products() {
+//     global $product;
+//     $more_info_url = get_post_meta( $product->get_id(), 'more_info_url', true );
+//     if ( ! empty($more_info_url) ) {
+//         echo '<a href="' . esc_url($more_info_url) . '" class="button" style="margin: 40px 0; text-align: center;">More Info</a>';
+//     }
+// }
+
+add_action( 'woocommerce_after_shop_loop_item', 'add_custom_links_to_products', 1 );
+function add_custom_links_to_products() {
+    global $product;
+    $custom_links = get_post_meta( $product->get_id(), 'custom_links', true );
+
+    if ( ! empty($custom_links) ) {
+        // Divide los enlaces por líneas
+        $links = explode("\n", $custom_links);
+
+        // Itera sobre cada enlace
+        foreach ( $links as $link ) {
+            // Divide la etiqueta y la URL por el carácter '|'
+            $parts = explode('|', $link);
+
+            if ( count($parts) === 2 ) {
+                $label = trim($parts[0]);
+                $url = trim($parts[1]);
+
+                // Si la URL es válida, muestra el enlace
+                if ( filter_var($url, FILTER_VALIDATE_URL) ) {
+                    echo '<a href="' . esc_url($url) . '" class="button" style="margin: 10px 0; text-align: center;">' . esc_html($label) . '</a>';
+                }
+            }
+        }
+    }
+}
