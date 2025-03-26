@@ -268,40 +268,272 @@ function custom_thank_you_page_redirect( $order_id ) {
  * 
  ******************************************************************************************************************************************************************/
 
+// add_action('woocommerce_before_checkout_form', 'add_paypal_and_card_buttons1');
+// add_action('woocommerce_before_checkout', 'add_paypal_and_card_buttons1');
+add_action('woocommerce_after_cart_totals', 'add_paypal_and_card_buttons1');
+// add_action('woocommerce_after_add_to_cart_button', 'add_paypal_and_card_buttons1');
 
-add_action('woocommerce_after_add_to_cart_button', 'add_paypal_and_card_buttons');
-add_action('woocommerce_after_cart_totals', 'add_paypal_and_card_buttons');
-
-function add_paypal_and_card_buttons() {
+function add_paypal_and_card_buttons1() {
     global $woocommerce;
     $total = $woocommerce->cart->total;
+	
+	// Obtener la última orden de WooCommerce del usuario
+    $orders = wc_get_orders([
+        'limit' => 1,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'customer' => get_current_user_id()
+    ]);
+//     $last_order = !empty($orders) ? $orders[0]->get_id() : 0;
+	$last_order = isset($orders[0]) ? $orders[0]->get_id() : 0;
+	
     ?>
+
+
+	<!-- Overlay con el spinner -->
+	<div id="loading-overlay" style="display: none;">
+		<p>Your payment is being processed</p>
+		<div class="spinner"></div>
+	</div>
+
     <div id="paypal-button-container"></div>
-    <div id="card-button-container"></div>
+
+	<style>
+		/* Estilos del overlay */
+		#loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.85);
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+			/* display: none; */
+		}
+		
+		#loading-overlay p{
+			color: #fff;
+			text-transform: uppercase;
+		}
+		/* Estilos del spinner */
+		.spinner {
+			border: 4px solid rgba(255, 255, 255, 0.3);
+			border-top: 4px solid #fff;
+			border-radius: 50%;
+			width: 50px;
+			height: 50px;
+			animation: spin 1s linear infinite;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+	</style>
 
     <script>
+		function showLoadingOverlay() {
+			document.getElementById("loading-overlay").style.display = "flex";
+		}
+
+		function hideLoadingOverlay() {
+			document.getElementById("loading-overlay").style.display = "none";
+		}
         paypal.Buttons({
             createOrder: function(data, actions) {
                 return actions.order.create({
                     purchase_units: [{
                         amount: {
-                            value: '<?php echo $total; ?>' // Valor dinámico basado en el total del carrito
+                            value: '<?php echo esc_js($total); ?>' // WooCommerce maneja los productos
                         }
                     }]
                 });
             },
             onApprove: function(data, actions) {
                 return actions.order.capture().then(function(details) {
-                    alert('Transaction completed by ' + details.payer.name.given_name);
+            		showLoadingOverlay();
+					
+                    var transactionId = details.id;
+//                     var orderNumber = details.purchase_units[0].payments.captures[0].id; // Corrección
+					var orderNumber = details.purchase_units?.[0]?.payments?.captures?.[0]?.id || 'N/A';
+                    //var wooOrderId = '<?php //echo $last_order; ?>';
+
+                    // Redirigir con los datos en la URL
+                    window.location.href = '/order-processing/?transaction_id=' + transactionId;
                 });
             }
         }).render('#paypal-button-container');
-
-        // Configuración adicional para los campos de tarjeta
     </script>
+
     <?php
 }
 
+
+
+/************************************************************************************/
+/*																					*/
+/* 			SIEMPRE VALIDAR QUE ESTÉN LOGUEADOS ANTES DE AÑADIR AL CARRITO			*/
+/*																					*/
+/************************************************************************************/
+
+add_filter('woocommerce_add_to_cart_validation', 'redirect_non_logged_users_to_register', 10, 2);
+
+function redirect_non_logged_users_to_register($passed, $product_id) {
+    if (!is_user_logged_in()) {
+        wp_redirect(home_url('/log-in/?warning-register=true')); // Redirige a la página de registro
+        exit;
+    }
+    return $passed;
+}
+
+
+/************************************************************************************/
+/*																					*/
+/*									BOTON CHECKOUT									*/
+/*																					*/
+/************************************************************************************/
+
+add_action('wp_footer', function () {
+    if (!is_checkout()) return; // Solo ejecuta en la página de checkout
+
+    $client_id = get_option('woocommerce-ppcp-settings')['client_id'] ?? '';
+    $client_secret = get_option('woocommerce-ppcp-settings')['client_secret'] ?? '';
+    $merchant_id = get_option('woocommerce-ppcp-settings')['merchant_id'] ?? '';
+// 	add_paypal_and_card_buttons1();
+	echo 'HOLA';
+	?>
+<script nonce="" src="https://www.paypal.com/sdk/js?client-id=BAAC47b-n-xN_YVZVIO-nyMF5vNzuWAucdCi7Cvdb6gqmT9ysevzyg1l2wcZYG67YZb_XTg6eCFuLG0hm4&amp;currency=USD&amp;integration-date=2024-12-02&amp;components=buttons,funding-eligibility,fastlane&amp;vault=false&amp;commit=false&amp;intent=capture&amp;disable-funding=bancontact,blik,eps,ideal,mybank,p24,trustly,multibanco,sepa&amp;enable-funding=venmo,paylater" data-partner-attribution-id="Woo_PPCP" data-client-metadata-id="f2d2a227126d4b5dbc3f5ed09677be94" data-uid="uid_aqjrjxywpthtzfkcttjdxdqgukkehj"></script>
+	<?php
+    if (current_user_can('administrator')) { // Solo para admins
+		
+//         echo '<br>';
+//         echo '<pre>';
+//         var_dump($client_id);
+//         echo '<br>';
+//         var_dump($client_secret);
+//         echo '<br>';
+//         var_dump($merchant_id);
+//         echo '<br>';
+//         var_dump($tokens ?? null); // Asegura que $tokens está definido
+//         echo '<br>';
+//         var_dump($token ?? null); // Asegura que $token está definido
+//         echo '</pre>';
+    }
+	
+	
+	
+	/*LINEAS DE FUNCIONALIDAD DEBEN SER IDENTICAS A LAS DE ARRIBA*/
+	
+	//global $woocommerce;
+    $total = $woocommerce->cart->total;
+	
+	// Obtener la última orden de WooCommerce del usuario
+    $orders = wc_get_orders([
+        'limit' => 1,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'customer' => get_current_user_id()
+    ]);
+    $last_order = !empty($orders) ? $orders[0]->get_id() : 0;
+	
+    ?>
+
+
+	<!-- Overlay con el spinner -->
+	<div id="loading-overlay" style="display: none;">
+		<p>Your payment is being processed</p>
+		<div class="spinner"></div>
+	</div>
+
+    <div id="paypal-button-container"></div>
+
+	<style>
+		/* Estilos del overlay */
+		#loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.85);
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			z-index: 9999;
+			flex-direction: column;
+			/* display: none; */
+		}
+		
+		#loading-overlay p{
+			color: #fff;
+			text-transform: uppercase;
+		}
+		/* Estilos del spinner */
+		.spinner {
+			border: 4px solid rgba(255, 255, 255, 0.3);
+			border-top: 4px solid #fff;
+			border-radius: 50%;
+			width: 50px;
+			height: 50px;
+			animation: spin 1s linear infinite;
+		}
+
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+	</style>
+
+    <script>
+		function showLoadingOverlay() {
+			document.getElementById("loading-overlay").style.display = "flex";
+		}
+
+		function hideLoadingOverlay() {
+			document.getElementById("loading-overlay").style.display = "none";
+		}
+		
+        paypal.Buttons({
+            createOrder: function(data, actions) {
+                return actions.order.create({
+                    purchase_units: [{
+                        amount: {
+                            value: '<?php echo esc_js($total); ?>' // WooCommerce maneja los productos
+                        }
+                    }]
+                });
+            },
+            onApprove: function(data, actions) {
+                return actions.order.capture().then(function(details) {
+            		showLoadingOverlay();
+					
+                    var transactionId = details.id;
+                    var orderNumber = details.purchase_units[0].payments.captures[0].id; // Corrección
+                    //var wooOrderId = '<?php //echo $last_order; ?>';
+
+                    // Redirigir con los datos en la URL
+                    window.location.href = '/order-processing/?transaction_id=' + transactionId;
+                });
+            }
+        }).render('#paypal-button-container');
+    </script>
+
+    <?php	
+});
+
+
+
+
+/************************************************************************************/
+
+
+
+
+/*********************************************************************************************************************************************************/
 
 
 // function add_languages_to_products() {
@@ -363,3 +595,134 @@ function add_custom_links_to_products() {
         }
     }
 }
+
+//REGISTER BEFORE ADD TO CART
+add_filter('woocommerce_product_add_to_cart_text', function($text) {
+    if (!is_user_logged_in()) {
+        return __('Buy', 'woocommerce');
+    }
+    return $text;
+});
+
+add_filter('woocommerce_loop_add_to_cart_link', function($button, $product) {
+    if (!is_user_logged_in()) {
+        $login_url = wp_login_url(get_permalink());
+        return '<a href="' . home_url('/log-in?warning-register=true') . '" class="button alt">' . __('Buy', 'woocommerce') . '</a>';
+    }
+    return $button;
+}, 10, 2);
+
+
+
+
+
+/***********************************************************************************************************************/
+/*													BORRAR LAZY LOAD
+/***********************************************************************************************************************/
+function disable_lazy_load_for_specific_images($content) {
+    $content = str_replace('loading="lazy"', '', $content);
+    $content = str_replace('lazy', '', $content);
+	
+    return $content;
+}
+add_filter('the_content', 'disable_lazy_load_for_specific_images');
+
+
+
+/***********************************************************************************************************************/
+/*										Botón para ir a product shop en el carrito
+/***********************************************************************************************************************/
+add_action('woocommerce_before_cart_totals', function() {
+    echo '<a href="' . esc_url(get_permalink(wc_get_page_id('shop'))) . '" class="button wc-backward">Add other product</a>';
+});
+
+
+/***********************************************************************************************************************/
+/*													ADD EYE PASSWORD
+/***********************************************************************************************************************/
+
+function add_password_toggle_script() {
+    ?>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelectorAll('input[type="password"]').forEach(function(input) {
+                let wrapper = document.createElement("div");
+                wrapper.style.position = "relative";
+                input.parentNode.insertBefore(wrapper, input);
+                wrapper.appendChild(input);
+
+                let toggleButton = document.createElement("button");
+                toggleButton.type = "button";
+                toggleButton.style.position = "absolute";
+                toggleButton.style.right = "10px";
+                toggleButton.style.top = "50%";
+                toggleButton.style.transform = "translateY(-50%)";
+                toggleButton.style.background = "transparent";
+                toggleButton.style.border = "none";
+                toggleButton.style.cursor = "pointer";
+                toggleButton.style.fontSize = "18px";
+                toggleButton.style.height = "35px";
+                toggleButton.style.paddingRight = "5px";
+				toggleButton.classList.add("password-toggle");
+				//toggleButton.id = "password-toggle"; // Asignar ID correctamente
+				
+                let eyeIcon = document.createElement("img");
+                eyeIcon.src = "https://championsrenaissance.com/wp-content/uploads/2025/03/eye.png";
+                eyeIcon.alt = "Mostrar contraseña";
+                eyeIcon.style.width = "20px";
+
+                toggleButton.appendChild(eyeIcon);
+                wrapper.appendChild(toggleButton);
+
+                toggleButton.addEventListener("click", function() {
+                    if (input.type === "password") {
+                        input.type = "text";
+                        eyeIcon.src = "https://championsrenaissance.com/wp-content/uploads/2025/03/eye_slash.png";
+                        eyeIcon.alt = "Ocultar contraseña";
+                    } else {
+                        input.type = "password";
+                        eyeIcon.src = "https://championsrenaissance.com/wp-content/uploads/2025/03/eye.png";
+                        eyeIcon.alt = "Mostrar contraseña";
+                    }
+                });
+
+                wrapper.appendChild(toggleButton);
+            });
+			var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+			var isEdge = /Edg/i.test(navigator.userAgent);
+
+			if (isSafari || isEdge) {
+				document.querySelectorAll(".password-toggle").forEach(function (btn) {
+					btn.style.display = "none";
+				});
+			}
+        });
+    </script>
+    <style>
+		@supports (-webkit-appearance: none) and (not (caret-color: auto)) {
+			.password-toggle {
+				display: none !important;
+			}
+		}
+		@supports (-webkit-hyphens: none) and (not (-moz-appearance: none)) {
+			.password-toggle {
+				display: none !important;
+			}
+		}
+		/* Ocultar en Safari */
+		@supports (-webkit-touch-callout: none) and (not (translate: none)) {
+			.password-toggle {
+				display: none !important;
+			}
+		}
+
+		/* Ocultar en Edge */
+		@supports (-ms-ime-align: auto) {
+			.password-toggle {
+				display: none !important;
+			}
+		}
+    </style>
+    <?php
+}
+add_action('wp_footer', 'add_password_toggle_script');
