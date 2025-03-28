@@ -1,3 +1,4 @@
+
 /******************************************************************************************************************************************************************
  *
  * NO MOVER LAS SIGUIENTES LINEAS, SON PARA DAR FUNCIONALIDAD A LA API DE AUTENTIFICACIÓN
@@ -84,7 +85,7 @@ function book_reader_get_books($request) {
                 // Verificar si el producto está en la categoría "book"
                 if (in_array('Books', $categories)) {
                     $purchased_books[] = [
-                        'id' => $product->get_id(),
+                        'id' => (int) $product->get_id(),
                         'name' => $product->get_name()
                     ];
                 }
@@ -97,10 +98,34 @@ function book_reader_get_books($request) {
     if (empty($purchased_books)) {
         return new WP_REST_Response(['error' => 'No books found'], 404);
     }
+	
+	$purchased_books[] = [
+		//'id' => strval((int) $product->get_id()), // Convierte a entero y luego a string
+    	'id' => strval(intval($product->get_id())), 
+		'name' => $product->get_name()
+	];
 
-    return new WP_REST_Response([
-        'purchased_products' => $purchased_books
-    ], 200);
+
+//     return new WP_REST_Response([
+//         'purchased_products' => $purchased_books
+//     ], 200);
+// 	return new WP_REST_Response(
+//     [
+//         'purchased_products' => array_map(function ($book) {
+//             return [
+//                 'id' => intval($book['id']), // Forzamos entero
+//                 'name' => $book['name']
+//             ];
+//         }, $purchased_books)
+//     ], 200);
+	return [
+		'purchased_products' => $purchased_books
+	];
+//     return new WP_REST_Response(
+// 		json_decode(json_encode(['purchased_products' => $purchased_books]), true), 
+// 		200
+// 	);
+
 }
 
 
@@ -633,7 +658,7 @@ add_filter('the_content', 'disable_lazy_load_for_specific_images');
 /*										Botón para ir a product shop en el carrito
 /***********************************************************************************************************************/
 add_action('woocommerce_before_cart_totals', function() {
-    echo '<a href="' . esc_url(get_permalink(wc_get_page_id('shop'))) . '" class="button wc-backward">Add other product</a>';
+    echo '<a href="https://championsrenaissance.com/product-shop/?wlfilter=1&woolentor_product_cat=books" class="button wc-backward" style="display: flex; float: right; margin-bottom: 20px; right: 0; flex-wrap: nowrap; width: max-content; justify-content: flex-end; flex-direction: row;">Add other product</a>';
 });
 
 
