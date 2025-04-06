@@ -1,4 +1,3 @@
-
 /******************************************************************************************************************************************************************
  *
  * NO MOVER LAS SIGUIENTES LINEAS, SON PARA DAR FUNCIONALIDAD A LA API DE AUTENTIFICACIÓN
@@ -555,10 +554,9 @@ add_action('wp_footer', function () {
 
 /************************************************************************************/
 
+/*									PRODUCT SHOP									*/
 
-
-
-/*********************************************************************************************************************************************************/
+/************************************************************************************/
 
 
 // function add_languages_to_products() {
@@ -640,10 +638,108 @@ add_filter('woocommerce_loop_add_to_cart_link', function($button, $product) {
 
 
 
+/************************************************************************************************************************/
+
+/*													PRODUCTO RECOMENDADO												*/
+
+/************************************************************************************************************************/
+
+// add_action('woocommerce_product_query', 'prioritize_featured_product');
+// function prioritize_featured_product($q) {
+//     if (is_shop() || is_product_category()) {
+//         $meta_query = $q->get('meta_query');
+
+//         $meta_query[] = array(
+//             'key' => 'is_featured_product',
+//             'compare' => 'EXISTS'
+//         );
+
+//         $q->set('meta_query', $meta_query);
+
+//         // Ordenar primero los que tienen "is_featured_product = yes"
+//         $q->set('orderby', array(
+//             'meta_value' => 'DESC',
+//             'title' => 'ASC'
+//         ));
+//         $q->set('meta_key', 'is_featured_product');
+//     }
+// }
+
+// add_action('pre_get_posts', 'woolentor_prioritize_recommended_product');
+// function woolentor_prioritize_recommended_product($query) {
+//     if (!is_admin() && $query->is_main_query() && (is_shop() || is_product_category())) {
+
+//         // Asegúrate de que esté en modo catálogo o categoría
+//         $meta_query = $query->get('meta_query') ?: [];
+
+//         $meta_query[] = array(
+//             'key' => 'is_featured_product',
+//             'compare' => 'EXISTS',
+//         );
+
+//         $query->set('meta_key', 'is_featured_product');
+//         $query->set('orderby', 'meta_value'); // Ordena por el valor del campo
+//         $query->set('order', 'DESC');
+//         $query->set('meta_query', $meta_query);
+//     }
+// }
+
+// add_action('woocommerce_product_query', function($q) {
+//     if (!is_page('product-shop')) return;
+
+//     $meta_query = $q->get('meta_query') ?: [];
+
+// //     $meta_query[] = [
+// //         'key'     => 'is_featured_product',
+// //         'compare' => 'EXISTS',
+// //     ];
+
+//     $meta_query[] = [
+//         'key'     => 'is_featured_product',
+//         'value'   => '',
+//     ];
+	
+// 	$meta_query_2 = array_merge($meta_query, $meta_query_1);
+
+//     $q->set('meta_key', 'is_featured_product');
+//     $q->set('orderby', 'meta_value');
+//     $q->set('order', 'DESC');
+//     $q->set('meta_query', $meta_query);
+// });
+
+
+add_action('woocommerce_product_query', function($q) {
+    if (!is_page('product-shop')) return;
+
+    $meta_query = $q->get('meta_query') ?: [];
+	
+	$meta_query[] = [
+        'relation' => 'OR', // Usamos 'OR' para combinar las dos condiciones
+        [
+            'key'     => 'is_featured_product',
+            'value'   => 'yes',
+            'compare' => 'NOT EXISTS',
+        ],
+        [
+            'key'     => 'is_featured_product',
+            'value'   => 'yes',
+            'compare' => 'EXISTS',
+        ]
+    ];
+
+    $q->set('orderby', 'meta_value');
+    $q->set('order', 'DESC');
+    $q->set('meta_query', $meta_query);
+});
+
+
 
 /***********************************************************************************************************************/
+
 /*													BORRAR LAZY LOAD
+
 /***********************************************************************************************************************/
+
 function disable_lazy_load_for_specific_images($content) {
     $content = str_replace('loading="lazy"', '', $content);
     $content = str_replace('lazy', '', $content);
