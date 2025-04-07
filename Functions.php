@@ -644,69 +644,6 @@ add_filter('woocommerce_loop_add_to_cart_link', function($button, $product) {
 
 /************************************************************************************************************************/
 
-// add_action('woocommerce_product_query', 'prioritize_featured_product');
-// function prioritize_featured_product($q) {
-//     if (is_shop() || is_product_category()) {
-//         $meta_query = $q->get('meta_query');
-
-//         $meta_query[] = array(
-//             'key' => 'is_featured_product',
-//             'compare' => 'EXISTS'
-//         );
-
-//         $q->set('meta_query', $meta_query);
-
-//         // Ordenar primero los que tienen "is_featured_product = yes"
-//         $q->set('orderby', array(
-//             'meta_value' => 'DESC',
-//             'title' => 'ASC'
-//         ));
-//         $q->set('meta_key', 'is_featured_product');
-//     }
-// }
-
-// add_action('pre_get_posts', 'woolentor_prioritize_recommended_product');
-// function woolentor_prioritize_recommended_product($query) {
-//     if (!is_admin() && $query->is_main_query() && (is_shop() || is_product_category())) {
-
-//         // Asegúrate de que esté en modo catálogo o categoría
-//         $meta_query = $query->get('meta_query') ?: [];
-
-//         $meta_query[] = array(
-//             'key' => 'is_featured_product',
-//             'compare' => 'EXISTS',
-//         );
-
-//         $query->set('meta_key', 'is_featured_product');
-//         $query->set('orderby', 'meta_value'); // Ordena por el valor del campo
-//         $query->set('order', 'DESC');
-//         $query->set('meta_query', $meta_query);
-//     }
-// }
-
-// add_action('woocommerce_product_query', function($q) {
-//     if (!is_page('product-shop')) return;
-
-//     $meta_query = $q->get('meta_query') ?: [];
-
-// //     $meta_query[] = [
-// //         'key'     => 'is_featured_product',
-// //         'compare' => 'EXISTS',
-// //     ];
-
-//     $meta_query[] = [
-//         'key'     => 'is_featured_product',
-//         'value'   => '',
-//     ];
-	
-// 	$meta_query_2 = array_merge($meta_query, $meta_query_1);
-
-//     $q->set('meta_key', 'is_featured_product');
-//     $q->set('orderby', 'meta_value');
-//     $q->set('order', 'DESC');
-//     $q->set('meta_query', $meta_query);
-// });
-
 
 add_action('woocommerce_product_query', function($q) {
     if (!is_page('product-shop')) return;
@@ -731,6 +668,27 @@ add_action('woocommerce_product_query', function($q) {
     $q->set('order', 'DESC');
     $q->set('meta_query', $meta_query);
 });
+
+//OPTION 1
+add_action( 'woocommerce_before_shop_loop_item_title', 'add_featured_class_to_product', 25 );
+function add_featured_class_to_product() {
+    global $product;
+    $featured_product = get_post_meta( $product->get_id(), 'is_featured_product', true );
+    
+    if ( ! empty( $featured_product ) && $featured_product === 'yes' ) {
+        echo '<div class="featured-product" style="display: block; width: 100%; display: flex !important; justify-content: flex-start; flex-wrap: nowrap; flex-direction: row; align-items: center; padding: 0px 30px; margin-top: -75px; left: 20px; position: absolute;"><img decoding="async" src="https://championsrenaissance.com/wp-content/uploads/2025/04/discover_books_answers.png" alt="ru"></div>';
+    }
+}
+
+//OPTION 2
+// add_action( 'woocommerce_shop_loop_item_title', 'add_featured_class_to_product', 25 );
+// function add_featured_class_to_product() {
+//     global $product;
+//     $featured_product = get_post_meta( $product->get_id(), 'is_featured_product', true );
+//     if ( ! empty( $featured_product ) && $featured_product === 'yes' ) {
+//         echo '<div class="featured-product" style="display: block; width: 50px;"><img decoding="async" src="https://championsrenaissance.com/wp-content/uploads/2025/04/discover_books_answers.png" alt="ru"></div>';
+//     }
+// }
 
 
 
@@ -847,3 +805,99 @@ function add_password_toggle_script() {
     <?php
 }
 add_action('wp_footer', 'add_password_toggle_script');
+
+
+
+/*********************************************************************************************************************************************/
+/*														reCaptcha V3
+/*********************************************************************************************************************************************/
+
+// Define tus claves de reCAPTCHA v2
+define('RECAPTCHA_SITE_KEY', '6Ld-dAwrAAAAAOg0N7fIfPC0hlHDNNjv787y98dW');
+define('RECAPTCHA_SECRET_KEY', '6Ld-dAwrAAAAAJD3wTLTAUDd-7umKcYmfar81y7f');
+
+// Mostrar reCAPTCHA en formularios de WP User Manager
+add_action('wpum_before_submit_button_registration_form', 'wpum_add_recaptcha_field', 99);
+add_action('wpum_before_submit_button_login_form', 'wpum_add_recaptcha_field', 99);
+function wpum_add_recaptcha_field() {
+    echo '<div class="recaptcha-wrapper" style="margin: 20px 0;">
+        <div class="g-recaptcha" data-sitekey="' . esc_attr(RECAPTCHA_SITE_KEY) . '"></div>
+    </div>';
+}
+
+// Validar reCAPTCHA al enviar el formulario
+add_filter('wpum_validate_form_submission', 'wpum_validate_recaptcha', 10, 3);
+function wpum_validate_recaptcha($is_valid, $form, $args) {
+    // Asegúrate de que se está procesando un formulario de login o registro
+    if (in_array($form, ['register', 'login'])) {
+        if (empty($_POST['g-recaptcha-response'])) {
+            wpum_add_error('recaptcha_missing', __('Please complete the reCAPTCHA.', 'wpum'));
+            return false;
+        }
+
+        $response = wp_remote_post("https://www.google.com/recaptcha/api/siteverify", [
+            'body' => [
+                'secret'   => RECAPTCHA_SECRET_KEY,
+                'response' => sanitize_text_field($_POST['g-recaptcha-response']),
+                'remoteip' => $_SERVER['REMOTE_ADDR']
+            ]
+        ]);
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (empty($body['success'])) {
+            wpum_add_error('recaptcha_failed', __('reCAPTCHA verification failed. Please try again.', 'wpum'));
+            return false;
+        }
+    }
+
+    return $is_valid;
+}
+
+// Cargar el script de reCAPTCHA
+add_action('wp_footer', function() {
+    ?>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <?php
+});
+
+/*********************************************************************************************************************************************/
+/*														REMPLAZAR SIGN IN Y SIGN UP
+/*********************************************************************************************************************************************/
+
+function replace_sign_in_sign_up_text($content) {
+    // Cambia estos slugs a los de tus páginas
+    if (is_page(['log-in', 'register'])) {
+        // Reemplaza "Sign In" por "Login"
+        $content = str_replace('Sign In', 'Login', $content);
+
+        // Reemplaza "Sign Up" por "Register"
+        $content = str_replace('Sign Up', 'Register', $content);
+		
+        $content = str_replace('Signin', 'Login', $content);
+        $content = str_replace('Signup', 'Register', $content);
+    }
+
+    return $content;
+}
+
+add_filter('the_content', 'replace_sign_in_sign_up_text');
+
+
+
+/*********************************************************************************************************************************************/
+/*														VER TODOS LOS HOOKS DE LA PAGINA
+/*********************************************************************************************************************************************/
+
+// add_action('all', function($hook) {
+//     if (
+//         strpos($hook, 'wpum') !== false || // cualquier hook de WP User Manager
+//         strpos($hook, 'elementor') !== false || // algo que Elementor pueda usar
+//         strpos($hook, 'form') !== false // cualquier cosa de formulario
+//     ) {
+//         echo "<div style='font-size:10px;color:red;'>Hook activo: {$hook}</div>";
+//     }
+// });
+
+
+// wpum_before_submit_button_registration_form
