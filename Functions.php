@@ -46,7 +46,7 @@ function book_reader_get_user_info($request) {
     }
 
     return new WP_REST_Response([
-        'username' => $user->user_login,
+        'username' => $user->user_,
         'email' => $user->user_email,
     ], 200);
 }
@@ -408,7 +408,7 @@ add_filter('woocommerce_add_to_cart_validation', 'redirect_non_logged_users_to_r
 
 function redirect_non_logged_users_to_register($passed, $product_id) {
     if (!is_user_logged_in()) {
-        wp_redirect(home_url('/log-in/?warning-register=true')); // Redirige a la página de registro
+        wp_redirect(home_url('/register/?warning-register=true')); // Redirige a la página de registro
         exit;
     }
     return $passed;
@@ -630,7 +630,7 @@ add_filter('woocommerce_product_add_to_cart_text', function($text) {
 add_filter('woocommerce_loop_add_to_cart_link', function($button, $product) {
     if (!is_user_logged_in()) {
         $login_url = wp_login_url(get_permalink());
-        return '<a href="' . home_url('/log-in?warning-register=true') . '" class="button alt">' . __('Buy', 'woocommerce') . '</a>';
+        return '<a href="' . home_url('/register?warning-register=true') . '" class="button alt">' . __('Buy', 'woocommerce') . '</a>';
     }
     return $button;
 }, 10, 2);
@@ -690,6 +690,24 @@ function add_featured_class_to_product() {
 //     }
 // }
 
+
+
+/***********************************************************************************************************************/
+
+/*											AGREGAR <br> A REGISTER
+
+/***********************************************************************************************************************/
+
+add_filter('the_content', 'replace_register_text_with_html');
+function replace_register_text_with_html($content) {
+    if (is_page('register')) {
+        $search = 'Already have an account?';
+        $replacement = 'Login if you have an account <br> <br>';
+        $content = str_replace($search, $replacement, $content);
+    }
+
+    return $content;
+}
 
 
 /***********************************************************************************************************************/
@@ -807,58 +825,87 @@ function add_password_toggle_script() {
 add_action('wp_footer', 'add_password_toggle_script');
 
 
-
 /*********************************************************************************************************************************************/
-/*														reCaptcha V3
+/*                                                        reCaptcha V2 para WP User Manager                                                  */
 /*********************************************************************************************************************************************/
 
-// Define tus claves de reCAPTCHA v2
+
+// Claves de tu reCAPTCHA v2
 define('RECAPTCHA_SITE_KEY', '6Ld-dAwrAAAAAOg0N7fIfPC0hlHDNNjv787y98dW');
 define('RECAPTCHA_SECRET_KEY', '6Ld-dAwrAAAAAJD3wTLTAUDd-7umKcYmfar81y7f');
 
-// Mostrar reCAPTCHA en formularios de WP User Manager
+// Mostrar reCAPTCHA en formularios de login y registro
 add_action('wpum_before_submit_button_registration_form', 'wpum_add_recaptcha_field', 99);
 add_action('wpum_before_submit_button_login_form', 'wpum_add_recaptcha_field', 99);
 function wpum_add_recaptcha_field() {
     echo '<div class="recaptcha-wrapper" style="margin: 20px 0;">
-        <div class="g-recaptcha" data-sitekey="' . esc_attr(RECAPTCHA_SITE_KEY) . '"></div>
+        <div class="g-recaptcha" data-sitekey="' . esc_attr(RECAPTCHA_SITE_KEY) . '" style="display: flex; justify-content: center;"></div>
     </div>';
 }
 
-// Validar reCAPTCHA al enviar el formulario
-add_filter('wpum_validate_form_submission', 'wpum_validate_recaptcha', 10, 3);
-function wpum_validate_recaptcha($is_valid, $form, $args) {
-    // Asegúrate de que se está procesando un formulario de login o registro
-    if (in_array($form, ['register', 'login'])) {
-        if (empty($_POST['g-recaptcha-response'])) {
-            wpum_add_error('recaptcha_missing', __('Please complete the reCAPTCHA.', 'wpum'));
-            return false;
-        }
+add_action( 'wp', function () {
+	if ( class_exists( 'WPUM_Form_Login' ) ) {
+		$form = WPUM_Form_Login::instance();
 
-        $response = wp_remote_post("https://www.google.com/recaptcha/api/siteverify", [
-            'body' => [
-                'secret'   => RECAPTCHA_SECRET_KEY,
-                'response' => sanitize_text_field($_POST['g-recaptcha-response']),
-                'remoteip' => $_SERVER['REMOTE_ADDR']
-            ]
-        ]);
+		if ( $form->get_step() === 'done' && $form->has_errors() ) {
+			$form->step = 0;
+		}
+	}
+} );
 
-        $body = json_decode(wp_remote_retrieve_body($response), true);
 
-        if (empty($body['success'])) {
-            wpum_add_error('recaptcha_failed', __('reCAPTCHA verification failed. Please try again.', 'wpum'));
-            return false;
-        }
+add_action('wpum_before_login', function($username) {
+    if (empty($_POST['g-recaptcha-response'])) {
+		$form = WPUM_Form_Login::instance();
+		$form->step = 0; // Forzar que vuelva al paso submit
+		throw new Exception(__('Please complete the Captcha.', 'wpum'));
     }
 
-    return $is_valid;
-}
+    $response = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+        'body' => [
+            'secret'   => RECAPTCHA_SECRET_KEY,
+            'response' => sanitize_text_field($_POST['g-recaptcha-response']),
+            'remoteip' => $_SERVER['REMOTE_ADDR'],
+        ]
+    ]);
 
-// Cargar el script de reCAPTCHA
-add_action('wp_footer', function() {
-    ?>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-    <?php
+    if (is_wp_error($response)) {
+		$form = WPUM_Form_Login::instance();
+		$form->step = 0; // Forzar que vuelva al paso submit
+		throw new Exception(__('Unable to verify Captcha.', 'wpum'));
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+
+    if (empty($body['success'])) {
+		$form = WPUM_Form_Login::instance();
+		$form->step = 0; // Forzar que vuelva al paso submit
+		throw new Exception(__('Captcha verification failed. Please try again.', 'wpum'));
+    }
+});
+
+add_action('wpum_before_registration_start', function($userdata) {
+    if (empty($_POST['g-recaptcha-response'])) {
+        throw new Exception(__('Please complete the Captcha.', 'wpum'));
+    }
+
+    $response = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+        'body' => [
+            'secret'   => RECAPTCHA_SECRET_KEY,
+            'response' => sanitize_text_field($_POST['g-recaptcha-response']),
+            'remoteip' => $_SERVER['REMOTE_ADDR'],
+        ]
+    ]);
+
+    if (is_wp_error($response)) {
+        throw new Exception(__('Unable to verify Captcha.', 'wpum'));
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response), true);
+
+    if (empty($body['success'])) {
+        throw new Exception(__('Captcha verification failed. Please try again.', 'wpum'));
+    }
 });
 
 /*********************************************************************************************************************************************/
@@ -868,36 +915,17 @@ add_action('wp_footer', function() {
 function replace_sign_in_sign_up_text($content) {
     // Cambia estos slugs a los de tus páginas
     if (is_page(['log-in', 'register'])) {
-        // Reemplaza "Sign In" por "Login"
+        // Reemplaza "Sign In" por ""
         $content = str_replace('Sign In', 'Login', $content);
 
         // Reemplaza "Sign Up" por "Register"
         $content = str_replace('Sign Up', 'Register', $content);
 		
         $content = str_replace('Signin', 'Login', $content);
-        $content = str_replace('Signup', 'Register', $content);
+        $content = str_replace('Signup Now', 'Register', $content);
     }
 
     return $content;
 }
 
 add_filter('the_content', 'replace_sign_in_sign_up_text');
-
-
-
-/*********************************************************************************************************************************************/
-/*														VER TODOS LOS HOOKS DE LA PAGINA
-/*********************************************************************************************************************************************/
-
-// add_action('all', function($hook) {
-//     if (
-//         strpos($hook, 'wpum') !== false || // cualquier hook de WP User Manager
-//         strpos($hook, 'elementor') !== false || // algo que Elementor pueda usar
-//         strpos($hook, 'form') !== false // cualquier cosa de formulario
-//     ) {
-//         echo "<div style='font-size:10px;color:red;'>Hook activo: {$hook}</div>";
-//     }
-// });
-
-
-// wpum_before_submit_button_registration_form
