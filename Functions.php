@@ -51,80 +51,125 @@ function book_reader_get_user_info($request) {
     ], 200);
 }
 
+// function book_reader_get_books($request) {
+//     $email = sanitize_email($request['email']);
+//     $user1 = get_user_by('email', $email); // Cambiado de $user1 a $user para mantener consistencia
+
+//     if (!$user1) {
+//         return new WP_REST_Response(['error' => 'User not found'], 404);
+//     }
+	
+// 	//var_dump($user1);
+// 	//var_dump($request['email']);
+	
+
+//     // Obtener pedidos del usuario y registrar la cantidad de pedidos encontrados
+//     $customer_orders = wc_get_orders(array(
+//         'customer_id' => $user1->ID,
+//         'status' => 'completed',
+//         'limit' => -1
+//     ));
+
+//     $purchased_books = [];
+
+//     // Itera sobre cada pedido para obtener los productos
+//     foreach ($customer_orders as $order) {
+//         foreach ($order->get_items() as $item) {
+//             $product = $item->get_product();
+
+//             if ($product) {
+//                 // Obtener categorías del producto
+//                 $categories = wp_get_post_terms($product->get_id(), 'product_cat', array('fields' => 'names'));
+                
+//                 // Verificar si el producto está en la categoría "book"
+//                 if (in_array('Books', $categories)) {
+//                     $purchased_books[] = [
+//                         'id' => (int) $product->get_id(),
+//                         'name' => $product->get_name()
+//                     ];
+//                 }
+//             }
+//         }
+//     }    
+// 	//var_dump($purchased_books);
+
+//     // Si no se encontraron productos con la etiqueta "book"
+//     if (empty($purchased_books)) {
+//         return new WP_REST_Response(['error' => 'No books found'], 404);
+//     }
+	
+// 	$purchased_books[] = [
+// 		//'id' => strval((int) $product->get_id()), // Convierte a entero y luego a string
+//     	'id' => strval(intval($product->get_id())), 
+// 		'name' => $product->get_name()
+// 	];
+
+
+// //     return new WP_REST_Response([
+// //         'purchased_products' => $purchased_books
+// //     ], 200);
+// // 	return new WP_REST_Response(
+// //     [
+// //         'purchased_products' => array_map(function ($book) {
+// //             return [
+// //                 'id' => intval($book['id']), // Forzamos entero
+// //                 'name' => $book['name']
+// //             ];
+// //         }, $purchased_books)
+// //     ], 200);
+// 	return [
+// 		'purchased_products' => $purchased_books
+// 	];
+// //     return new WP_REST_Response(
+// // 		json_decode(json_encode(['purchased_products' => $purchased_books]), true), 
+// // 		200
+// // 	);
+
+// }
+
+
+
 function book_reader_get_books($request) {
     $email = sanitize_email($request['email']);
-    $user1 = get_user_by('email', $email); // Cambiado de $user1 a $user para mantener consistencia
+    $user = get_user_by('email', $email);
 
-    if (!$user1) {
+    if (!$user) {
         return new WP_REST_Response(['error' => 'User not found'], 404);
     }
-	
-	//var_dump($user1);
-	//var_dump($request['email']);
-	
 
-    // Obtener pedidos del usuario y registrar la cantidad de pedidos encontrados
     $customer_orders = wc_get_orders(array(
-        'customer_id' => $user1->ID,
+        'customer_id' => $user->ID,
         'status' => 'completed',
         'limit' => -1
     ));
 
     $purchased_books = [];
 
-    // Itera sobre cada pedido para obtener los productos
     foreach ($customer_orders as $order) {
         foreach ($order->get_items() as $item) {
             $product = $item->get_product();
 
             if ($product) {
-                // Obtener categorías del producto
                 $categories = wp_get_post_terms($product->get_id(), 'product_cat', array('fields' => 'names'));
-                
-                // Verificar si el producto está en la categoría "book"
+
                 if (in_array('Books', $categories)) {
-                    $purchased_books[] = [
-                        'id' => (int) $product->get_id(),
+                    $book_id = (int) $product->get_id();
+                    // Evitar duplicados usando ID como clave
+                    $purchased_books[$book_id] = [
+                        'id' => $book_id,
                         'name' => $product->get_name()
                     ];
                 }
             }
         }
-    }    
-	//var_dump($purchased_books);
-
-    // Si no se encontraron productos con la etiqueta "book"
-    if (empty($purchased_books)) {
-        return new WP_REST_Response(['error' => 'No books found'], 404);
     }
-	
-	$purchased_books[] = [
-		//'id' => strval((int) $product->get_id()), // Convierte a entero y luego a string
-    	'id' => strval(intval($product->get_id())), 
-		'name' => $product->get_name()
-	];
 
+    // Convertir a array plano
+    $purchased_books = array_values($purchased_books);
 
-//     return new WP_REST_Response([
-//         'purchased_products' => $purchased_books
-//     ], 200);
-// 	return new WP_REST_Response(
-//     [
-//         'purchased_products' => array_map(function ($book) {
-//             return [
-//                 'id' => intval($book['id']), // Forzamos entero
-//                 'name' => $book['name']
-//             ];
-//         }, $purchased_books)
-//     ], 200);
-	return [
-		'purchased_products' => $purchased_books
-	];
-//     return new WP_REST_Response(
-// 		json_decode(json_encode(['purchased_products' => $purchased_books]), true), 
-// 		200
-// 	);
-
+    return new WP_REST_Response([
+        'purchased_products' => $purchased_books
+    ]);
 }
 
 
@@ -184,23 +229,43 @@ function custom_add_to_cart_validation( $passed, $product_id, $quantity, $variat
 
 /******************************************************************************************************************************************************************
  *
- * NO MOVER LAS SIGUIENTES LINEAS, SON PARA DAR FUNCIONALIDAD A LA API DE AUTENTIFICACIÓNCONECTIVIDAD EN MAILER LITE/
+ * NO MOVER LAS SIGUIENTES LINEAS, SON PARA DAR FUNCIONALIDAD A LA API DE AUTENTIFICACIÓN CONECTIVIDAD EN MAILER LITE/
  * FIRMADO: ESTEBAN SALGADO
  * 
  ******************************************************************************************************************************************************************/
 
 function subscribe_user_to_mailerlite($user_id) {
     $user_info = get_userdata($user_id);
+    if (!$user_info) {
+        error_log("No se pudo obtener info del usuario con ID: $user_id");
+        return;
+    }
+
     $email = $user_info->user_email;
 
     $api_key = get_option('mailerlite_api_key');
-    $group_id = '138377344715851095';  // Asegúrate de que este ID es correcto
+    $group_id = '138377344715851095'; // ← Asegúrate de que este ID es correcto
 
     $url = "https://api.mailerlite.com/api/v2/groups/{$group_id}/subscribers";
-    $body = json_encode([
-        'email' => $email,
-        // 'name' => $user_info->first_name,  // Añadir si quieres pasar el nombre
-    ]);
+
+//     $body = json_encode([
+//         'email' => $email,
+//         // 'name' => $user_info->first_name ?? '', // Descomenta si es necesario
+//     ]);
+// 	$body = json_encode([
+// 		'email' => $email,
+// 		'fields' => [
+// 			'name' => $user_info->display_name,
+// 			'signup_ip' => $_SERVER['REMOTE_ADDR'],
+// 		]
+// 	]);
+
+	$body = json_encode([
+		'email' => $email,
+		'name' => $user_info->display_name,
+		'groups' => [$group_id],
+		'status' => 'active',
+	]);
 
     $args = [
         'body'        => $body,
@@ -211,23 +276,33 @@ function subscribe_user_to_mailerlite($user_id) {
         'method'      => 'POST',
         'data_format' => 'body'
     ];
+	
 
     $response = wp_remote_post($url, $args);
+// 	echo ''.$response;
+// 	stop everything
+
     if (is_wp_error($response)) {
         error_log('Error en la suscripción a MailerLite: ' . $response->get_error_message());
     } else {
-        // Loguear la respuesta para entender lo que devolvió la API
-        error_log('Respuesta de MailerLite: ' . wp_json_encode($response));
+        $response_body = wp_remote_retrieve_body($response);
+        error_log('Respuesta de MailerLite: ' . $response_body);
+// 		wp_die('<pre>' . print_r($response_body, true) . '</pre>');
     }
 }
+
+// Hook correcto para WP User Manager
+add_action('wpum_after_user_register', 'subscribe_user_to_mailerlite');
+add_action('wpum_before_user_register', 'subscribe_user_to_mailerlite');
 add_action('user_register', 'subscribe_user_to_mailerlite');
+add_action('profile_update', 'subscribe_user_to_mailerlite');
 
 //WP USER MANAGER MANAGE DESACTIVATE MAILS
 add_filter('wpum_email_disable_new_user_notification', '__return_true');
 add_filter('wpum_email_disable_admin_new_user_notification', '__return_true');
 
 
-
+//NO SÉ PARA QUE ESTO, YA NO PUEDO UTILIZAR ESTO
 add_action( 'woocommerce_thankyou', 'custom_thank_you_page_redirect', 10, 1 );
 function custom_thank_you_page_redirect( $order_id ) {
     if ( !$order_id ) return;
@@ -245,42 +320,290 @@ function custom_thank_you_page_redirect( $order_id ) {
     }
 }
 
-// // CAPTCHA
-// // Función para validar el CAPTCHA en el registro
-// function validar_captcha_wpum($errors, $values) {
-//     if (!session_id()) {
-//         session_start();
-//     }
-// 	echo $_SESSION['captcha_prefix'];
 
-//     if (isset($_POST['captcha_code'], $_SESSION['captcha_prefix'])) {
-//         require_once(plugin_dir_path(__FILE__) . 'path/to/really-simple-captcha/really-simple-captcha.php');
-//         $captcha_instance = new ReallySimpleCaptcha();
 
-//         // Verificación en minúsculas para evitar problemas de mayúsculas/minúsculas
-//         $correct = strtolower($captcha_instance->check($_SESSION['captcha_prefix'], $_POST['captcha_code'])) === strtolower($_POST['captcha_code']);
+// /******************************************************************************************************************************************************************
+//  *
+//  * NO MOVER LAS SIGUIENTES LINEAS, SON PARA REGISTRO EN VARIOS GRUPOS DE MAILER LITE
+//  * FIRMADO: ESTEBAN SALGADO
+//  * 
+//  ******************************************************************************************************************************************************************/
 
-//         // Log para depuración
-//         echo 'CAPTCHA Code Submitted: ' . ($_POST['captcha_code'] ?? 'not set');
+// add_action('wpum_a4fter_user_register', function($user_id, $form_data) {
+// function subscribe_user_to_mailerlite_checks($user_id, $form_data = []) {
+//     $subscriptions = [
+// //         'mailerlite_subscribe_game'   => ['group_id' => '154591874021066678', 'interest' => 'Game'],
+// //         'mailerlite_subscribe_novel'  => ['group_id' => '154591865809667778', 'interest' => 'Novel'],
+// //         'mailerlite_subscribe_leader' => ['group_id' => '154591888077227574', 'interest' => 'Eagle-Leader'],
+// //         'mailerlite_subscribe_news'   => ['group_id' => '154591901599664086', 'interest' => 'News'],
+//         'mailerlite_subscribe_game'   => ['group_id' => '154591874021066678'],
+//         'mailerlite_subscribe_novel'  => ['group_id' => '154591865809667778'],
+//         'mailerlite_subscribe_leader' => ['group_id' => '154591888077227574'],
+//         'mailerlite_subscribe_news'   => ['group_id' => '154591901599664086'],
+//     ];
+	
 
-//         // Elimina los archivos temporales
-//         $captcha_instance->remove($_SESSION['captcha_prefix']);
+//     $user_info = get_userdata($user_id);
+//     $email     = $user_info->user_email;
+//     $name      = $user_info->display_name;
 
-//         if (!$correct) {
-//             $errors->add('invalid_captcha', __('The CAPTCHA code entered was incorrect. Please try again.', 'your-text-domain'));
-//         }
+//     $api_key = get_option('mailerlite_api_key');
 
-//         // Limpia la sesión
-//         unset($_SESSION['captcha_word'], $_SESSION['captcha_prefix']);
-//     } else {
-//         $errors->add('empty_captcha', __('CAPTCHA code is required.', 'your-text-domain'));
-//     }
+//     foreach ($subscriptions as $field => $data) {
+// 		$group_id = $data['group_id'];
+// 		$url = "https://api.mailerlite.com/api/v2/groups/{$group_id}/subscribers";
 
-//     return $errors;
+// 		$is_checked = !empty($form_data[$field]) || get_user_meta($user_id, $field, true);
+
+
+// 		//colocar esta linea aquí imprime dos 1
+// 		wp_die('<pre>' .  print_r($is_checked). empty($form_data[$field]). get_user_meta($user_id, $field, true) . '</pre>');
+
+//         if ($is_checked) {
+// 			$body = json_encode([
+// 				'email' => $email,
+// 				'name'  => $name,
+// 				'groups' => [$group_id],
+// 				'status' => 'active',
+// 			]);
+
+// 			$args = [
+// 				'body'        => $body,
+// 				'headers'     => [
+// 					'Content-Type' => 'application/json',
+// 					'X-MailerLite-ApiKey' => $api_key
+// 				],
+// 				'method'      => 'POST',
+// 				'data_format' => 'body'
+// 			];
+
+// 			$response = wp_remote_post($url, $args);
+			
+// 			//colocar esta linea aquí y no arriba no imprime nada, da la impresión que no entra al if
+// 			wp_die('<pre>' .  print_r($is_checked). empty($form_data[$field]). get_user_meta($user_id, $field, true) . '</pre>');
+// 			if (is_wp_error($response)) {
+// 				error_log('MailerLite error: ' . $response->get_error_message());
+// 				wp_die('<pre>' . print_r($response_body, true) . '</pre>');
+// 			} else {
+// 				error_log('MailerLite response: ' . wp_remote_retrieve_body($response));
+// 				wp_die('<pre>' . print_r($response_body, true) . '</pre>');
+// 			}
+// 		}
+// 	}
 // }
+// 
+// 
+// 
+add_filter('wpum_get_registration_fields', function($fields) {
+    $fields['mailerlite_subscribe_game'] = [
+        'label'       => __('', 'your-textdomain'),
+        'type'        => 'checkbox',
+        'required'    => false,
+        'meta'        => true,
+        'priority'    => 99,
+        'description' => __('The game', 'your-textdomain'),
+    ];
+    $fields['mailerlite_subscribe_novel'] = [
+        'label'       => __('', 'your-textdomain'),
+        'type'        => 'checkbox',
+        'required'    => false,
+        'meta'        => true,
+        'priority'    => 99,
+        'description' => __('The novel', 'your-textdomain'),
+    ];
+    $fields['mailerlite_subscribe_leader'] = [
+        'label'       => __('', 'your-textdomain'),
+        'type'        => 'checkbox',
+        'required'    => false,
+        'meta'        => true,
+        'priority'    => 99,
+        'description' => __('Become an eagle-leader', 'your-textdomain'),
+    ];
+    $fields['mailerlite_subscribe_news'] = [
+        'label'       => __('', 'your-textdomain'),
+        'type'        => 'checkbox',
+        'required'    => false,
+        'meta'        => true,
+        'priority'    => 99,
+        'description' => __('Receive news', 'your-textdomain'),
+    ];
+    return $fields;
+});
 
-// add_action('wpum_before_user_registration_validation', 'validar_captcha_wpum', 10, 2);
+add_action('wpum_after_user_register', 'subscribe_user_to_mailerlite_checks', 10, 2);
+add_action('wpum_before_user_register', 'subscribe_user_to_mailerlite_checks', 10, 2);
+add_action('user_register', function($user_id) {
+    subscribe_user_to_mailerlite_checks($user_id, []);
+}, 10, 1);
+add_action('profile_update', function($user_id) {
+    subscribe_user_to_mailerlite_checks($user_id, []);
+}, 10, 1);
 
+// add_action('wpum_user_registered', 'subscribe_user_to_mailerlite_checks', 10, 2);
+
+
+function subscribe_user_to_mailerlite_checks($user_id, $form_data = []) {
+    $subscriptions = [
+        'mailerlite_subscribe_game'   => ['group_id' => '154591874021066678'],
+        'mailerlite_subscribe_novel'  => ['group_id' => '154591865809667778'],
+        'mailerlite_subscribe_leader' => ['group_id' => '154591888077227574'],
+        'mailerlite_subscribe_news'   => ['group_id' => '154591901599664086'],
+    ];
+
+    $user_info = get_userdata($user_id);
+    if (!$user_info) return;
+
+    $email = $user_info->user_email;
+    $name  = $user_info->display_name;
+
+    $api_key = get_option('mailerlite_api_key');
+    if (!$api_key) return;
+
+    foreach ($subscriptions as $field => $data) {
+        $group_id = $data['group_id'];
+        $url      = "https://api.mailerlite.com/api/v2/groups/{$group_id}/subscribers";
+
+        // Evaluar fuente de datos (form o meta)
+//         $from_form = isset($_POST['wpum_register'][$field]) && $_POST['wpum_register'][$field] === '1';
+		$from_form = isset($_POST[$field]) && $_POST[$field] === '1';
+		$from_meta = get_user_meta($user_id, $field, true);
+		$is_checked = $from_form || $from_meta;
+		
+// 		no será:
+// 		$_POST['mailerlite_subscribe_game']...
+// 		así aparece en la documentacion
+
+        // Debug claro (NO LO ES)
+        //error_log("Field: $field | from_form: " . var_export($from_form, true) . " | from_meta: " . var_export($from_meta, true) . " | is_checked: " . var_export($is_checked, true));
+
+//  		wp_die('<pre>' . var_dump($_POST) . '</pre>'); // este si
+        if ($is_checked) {
+            $body = json_encode([
+                'email'  => $email,
+                'name'   => $name,
+                'status' => 'active',
+            ]);
+
+            $args = [
+                'body'    => $body,
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'X-MailerLite-ApiKey' => $api_key,
+                ],
+                'method'      => 'POST',
+                'data_format' => 'body',
+            ];
+
+            $response = wp_remote_post($url, $args);
+//             $response_body = wp_remote_retrieve_body($response);
+
+            if (is_wp_error($response)) {
+                error_log('MailerLite error: ' . $response->get_error_message());
+            } else {
+                error_log("1Subscribed to {$field} | Response: " . $response_body);
+// 				wp_die('<pre>' . print_r("1Not subscribed to {$field}"). " ". var_dump($form_data) . "           " . var_dump($_POST). '</pre>'); // este si
+            }
+        } else {
+            error_log("2Not subscribed to {$field}");
+// 			wp_die('<pre>' . print_r("2Not subscribed to {$field}"). " ". var_dump($form_data) . "           " . var_dump($_POST). '</pre>'); // este si
+        }
+    }
+}
+
+
+
+
+// add_action('wpum_after_user_register', function($user_id, $form_data) {
+//     $interests = [];
+
+//     if (!empty($form_data['mailerlite_subscribe_game']))   $interests[] = 'Game';
+//     if (!empty($form_data['mailerlite_subscribe_novel']))  $interests[] = 'Novel';
+//     if (!empty($form_data['mailerlite_subscribe_leader'])) $interests[] = 'Eagle-Leader';
+//     if (!empty($form_data['mailerlite_subscribe_news']))   $interests[] = 'News';
+
+	
+//     // Si no seleccionó ninguna opción, salimos
+//     if (empty($interests)) return;
+
+// 	for $interests hazlo así
+//     $user_info = get_userdata($user_id);
+//     $email     = $user_info->user_email;
+//     $name      = $user_info->display_name;
+
+//     $api_key  = get_option('mailerlite_api_key');
+//     $group_id = '138377344715851095'; 1
+//     $group_id = '138377344715851095'; 2
+//     $group_id = '138377344715851095'; 3
+//     $group_id = '138377344715851095'; 4
+
+//     $url = 'https://connect.mailerlite.com/api/subscribers';
+//     $body = json_encode([
+//         'email' => $email,
+//         'name'  => $name,
+//         'groups' => [$group_id],
+//         'fields' => [
+//             'interests' => implode(', ', $interests), // <- si quieres usar campos personalizados
+//         ],
+//     ]);
+
+//     $args = [
+//         'body'    => $body,
+//         'headers' => [
+//             'Content-Type'  => 'application/json',
+//             'Authorization' => 'Bearer ' . $api_key,
+//         ],
+//         'method'      => 'POST',
+//         'data_format' => 'body',
+//     ];
+
+//     $response = wp_remote_post($url, $args);
+
+//     if (is_wp_error($response)) {
+//         error_log('MailerLite error: ' . $response->get_error_message());
+//     } else {
+//         error_log('MailerLite response: ' . wp_remote_retrieve_body($response));
+//     }
+// }, 10, 2);
+
+
+// add_action('wpum_after_user_register', function($user_id, $form_data) {
+//     if (!isset($form_data['mailerlite_subscribe']) || $form_data['mailerlite_subscribe'] !== '1') {
+//         return;
+//     }
+
+//     $user_info = get_userdata($user_id);
+//     $email     = $user_info->user_email;
+//     $name      = $user_info->display_name;
+
+//     $api_key  = get_option('mailerlite_api_key');
+// //     $group_id = 'AQUÍ_TU_ID_DE_GRUPO';
+//     $group_id = '138377344715851095'; // ← Asegúrate de que este ID es correcto
+
+//     $url  = 'https://connect.mailerlite.com/api/subscribers';
+//     $body = json_encode([
+//         'email' => $email,
+//         'name'  => $name,
+//         'groups' => [$group_id],
+//     ]);
+
+//     $args = [
+//         'body'        => $body,
+//         'headers'     => [
+//             'Content-Type'  => 'application/json',
+//             'Authorization' => 'Bearer ' . $api_key,
+//         ],
+//         'method'      => 'POST',
+//         'data_format' => 'body',
+//     ];
+
+//     $response = wp_remote_post($url, $args);
+
+//     if (is_wp_error($response)) {
+//         error_log('MailerLite error: ' . $response->get_error_message());
+//     } else {
+//         error_log('MailerLite response: ' . wp_remote_retrieve_body($response));
+//     }
+// }, 10, 2);
 
 
 
@@ -676,7 +999,7 @@ function add_featured_class_to_product() {
     $featured_product = get_post_meta( $product->get_id(), 'is_featured_product', true );
     
     if ( ! empty( $featured_product ) && $featured_product === 'yes' ) {
-        echo '<div class="featured-product" style="display: block; width: 100%; display: flex !important; justify-content: flex-start; flex-wrap: nowrap; flex-direction: row; align-items: center; padding: 0px 30px; margin-top: -75px; left: 20px; position: absolute;"><img decoding="async" src="https://championsrenaissance.com/wp-content/uploads/2025/04/discover_books_answers.png" alt="ru"></div>';
+        echo '<div class="featured-product" style="display: block; width: 100%; display: flex !important; justify-content: flex-start; flex-wrap: nowrap; flex-direction: row; align-items: center; padding: 0px 30px; margin-top: -75px; left: 20px; position: absolute;"><!--<img decoding="async" src="https://championsrenaissance.com/wp-content/uploads/2025/04/discover_books_answers.png" alt="ru">--></div>';
     }
 }
 
@@ -691,23 +1014,360 @@ function add_featured_class_to_product() {
 // }
 
 
-
 /***********************************************************************************************************************/
 
-/*											AGREGAR <br> A REGISTER
+/*											BOTON INCIO LIBRO ONLINE
 
 /***********************************************************************************************************************/
+add_action('wp_footer', 'mostrar_html_flotante_en_urls_personalizadas');
 
-add_filter('the_content', 'replace_register_text_with_html');
-function replace_register_text_with_html($content) {
-    if (is_page('register')) {
-        $search = 'Already have an account?';
-        $replacement = 'Login if you have an account <br> <br>';
-        $content = str_replace($search, $replacement, $content);
+function mostrar_html_flotante_en_urls_personalizadas() {
+    if (is_singular()) {
+        $url_actual = $_SERVER['REQUEST_URI'];
+
+        // Verifica si la URL contiene el patrón deseado ENG y ESP
+        if (preg_match('#/(one-exceptional-mind-act|una-mente-excepcional-acto)-[a-z0-9-]+/#', $url_actual) ||
+			preg_match('#/(una-mente-excepcional-sinopsis|una-mente-excepcional-introduccion|una-mente-excepcional-prefacio|una-mente-excepcional-epilogo)/#', $url_actual) ||
+			preg_match('#/(one-exceptional-mind-synopsis|one-exceptional-mind-introduction|one-exceptional-mind-preface|one-exceptional-mind-epilogue)/#', $url_actual)
+		   ) {
+            ?>
+            <div style="
+                position: fixed;
+                bottom: 5px;
+                right: 20px;
+                z-index: 9999;
+				width: 15%;
+            ">
+				<button id="index_btn">
+					Index
+				</button>
+				<button id="exit_btn" onclick="window.location.href='https://championsrenaissance.com/product-shop/?wlfilter=1&woolentor_product_cat=books';">
+					Exit
+				</button>
+				
+				 <nav class="main-menu">
+					 <button onclick="closePopupIndex()" style="color: black; font-size: 12px; border: 1px solid black; padding: 7px; border-radius:30px; display: flex; margin: auto; margin-right: 0;"><img src="https://championsrenaissance.com/wp-content/uploads/2025/05/7560626.png" style="width: 22px;"></button>
+					<div class="settings"></div>
+					<?php if (preg_match('#/(una-mente-excepcional-acto)-[a-z0-9-]+/#', $url_actual) || preg_match('#/(una-mente-excepcional-sinopsis|una-mente-excepcional-introduccion|una-mente-excepcional-prefacio|una-mente-excepcional-epilogo)/#', $url_actual)) { ?>
+					 <h3 style="text-align: center; text-transform: uppercase; font-family: 'Times New Roman'; font-weight: bold;">Índice</h3>
+					 <?php echo do_shortcode('[wpcode id="28045"]'); ?>
+					<?php } ?>
+					
+					<?php if (preg_match('#/(one-exceptional-mind-act)-[a-z0-9-]+/#', $url_actual) || preg_match('#/(one-exceptional-mind-synopsis|one-exceptional-mind-introduction|one-exceptional-mind-preface|one-exceptional-mind-epilogue)/#', $url_actual)) { ?>
+					 <h3 style="text-align: center; text-transform: uppercase; font-family: 'Times New Roman'; font-weight: bold;">Index</h3>
+					 <?php echo do_shortcode('[wpcode id="27911"]'); ?>
+					<?php } ?>
+				 </nav>
+			</div>
+			<script>
+				function closePopupIndex() {
+					const index_popup = document.querySelector(".main-menu");
+					if (index_popup.style.display === "none" || index_popup.style.display === "") {
+						index_popup.style.display = "block";
+					} else {
+						index_popup.style.display = "none";
+					}
+				}
+			  document.addEventListener("DOMContentLoaded", function () {
+				const index_btn = document.querySelector("#index_btn");
+				const index_popup = document.querySelector(".main-menu");
+
+				if (!index_btn || !index_popup) return;
+
+				index_btn.addEventListener("click", function () {
+				  if (index_popup.style.display === "none" || index_popup.style.display === "") {
+					index_popup.style.display = "block";
+				  } else {
+					index_popup.style.display = "none";
+				  }
+				});
+			  });
+			</script>
+
+			<style>
+				.main-menu, nav.main-menu.expanded {
+					display: none;
+					top:0;
+					bottom:0;
+					left: 0;
+					right:0;
+					width: 45%;
+					height: 85%;
+					margin: auto;
+					position: fixed;
+					overflow:hidden;
+					overflow-y: auto;   
+					background:#efefef;
+					border-radius: 30px;
+					border: 1px solid #cfcfcf;
+					transition:width .2s linear;
+					-webkit-transition:width .2s linear;
+					-webkit-transform:translateZ(0) scale(1,1);
+					box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
+					opacity:1;
+				}
+
+				@media only screen and (max-width: 768px) {
+					.main-menu {
+						width:83%;
+						height: 80%;
+						box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
+					}
+				}
+
+				/* STYLES FROM CHRE*/
+				nav{
+				  padding: 30px;
+				  overflow: hidden;
+				}
+
+				.toggle-list-1 {
+				  display: none;
+				}
+				.toggle-list-2 {
+				  display: none;
+				}
+				.toggle-list-3 {
+				  display: none;
+				}
+
+				/* *************** */
+				.elementor-button-wrapper {
+				  margin: auto;
+				}
+
+				button.toggle-button{
+				  padding: 12px 24px !important;
+				}
+
+				a.elementor-button.elementor-button-index, button.toggle-button {
+				  background: #FAC334C9;
+				  display:block;
+				  color: black;
+				  box-shadow: 0px 0px 7px 0px rgba(0, 0, 0, 0.25);
+				  font-family: "Times New Roman", Sans-serif;
+				  font-size: 22px; 
+				  background: #FAC334C9;
+				  width: 90%;
+				  margin: auto;
+				  margin-top: 20px;
+				  border-radius: 15px;
+				  border-width: 0;
+				/* padding: 12px 24px !important; */
+				}
+				a.elementor-button:hover, .toggle-button:hover {
+				  background: #FAC334C9;
+				  color:black;
+				  cursor: hand;
+				}
+				#index_btn, #exit_btn{
+					color: black;
+					font-family: 'Arial';
+
+					font-weight: 600;
+					font-size: 18px;
+					background: #fff;
+					padding: 5px 20px;
+					z-index: 1;
+					position: relative;
+					bottom: -10px;
+					border: none;
+					box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-webkit-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-moz-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					
+					background: #3A1953;
+					color: #fff;
+					background: #fff;
+					color: #000;
+					
+					width: 80px;
+				}
+				#exit_btn {
+					background: #fff;
+					color: #000;
+				}
+				@media only screen and (max-width: 768px) {
+/* 					#index_btn {
+						right: 110px;
+						bottom: -5px;
+						position: fixed;
+					}
+					#exit_btn {
+						right: 32px;
+					} */
+					#index_btn {
+						right:26px;
+					}
+					#exit_btn {
+						right: 110px;
+						bottom: -5px;
+						position: fixed;
+					}
+				}
+			</style>
+            <?php
+        }
+        if (preg_match('#/(book-one-exceptional-mind/en/index|book-one-exceptional-mind/es/index)/#', $url_actual)) {
+            ?>
+            <div id="home_btn_container" style="
+            ">
+				<a id="home_btn" href="https://championsrenaissance.com/product-shop/?wlfilter=1&woolentor_product_cat=books" style = "">
+					Exit
+				</a>
+			</div>
+			<style>
+				#home_btn{
+					color: black;
+					font-family: 'Arial';
+					
+					color: black;
+					font-weight: 800;
+					font-size:18px;
+					background: #fff;
+					padding: 9px 20px !important;
+
+					font-weight: 600;
+					font-size:18px;
+					background: #fff;
+					padding: 5px 20px;
+					z-index: 1;
+					bottom: -10px;
+					border: none;
+					box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-webkit-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-moz-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					
+					background: #3A1953;
+					color: #fff;
+					
+					background: #fff;
+					color: #000;
+				}
+				#home_btn_container {
+					position: fixed;
+					bottom: 0;
+					z-index: 9999;
+					width: 15%;
+					right: 58px;
+				}
+				@media only screen and (max-width: 768px) {
+					#home_btn_container {
+						right: 35px !important;
+					}
+				}
+			</style>
+            <?php
+		}
     }
-
-    return $content;
 }
+
+
+/***********************************************************************************************************************/
+
+/*												PERSONALIZAR REGISTRO
+
+/***********************************************************************************************************************/
+// add_filter('the_content', 'personalizar_pagina_registro');
+
+// function personalizar_pagina_registro($content) {
+// 	if (!is_page('register')) return $content;
+
+// 	// Reemplazo de texto
+// 	$search = 'Already have an account?';
+// 	$replacement = 'Login if you have an account <br><br>';
+// 	$content = str_replace($search, $replacement, $content);
+	
+// 	// Reemplazo del checkbox: oculto pero marcado (checked)
+// 	$search = 'type="checkbox"';
+// 	$replacement = 'type="checkbox" style="display: none;" checked ';
+// 	$content = str_replace($search, $replacement, $content);
+	
+// 	// Reemplazo del checkbox: oculto pero marcado (checked)
+// 	$search = 'I have read and accept the';
+// 	$replacement = 'To register means that I have read and accept the';
+// 	$content = str_replace($search, $replacement, $content);
+	
+// 	echo"
+// 	<script>
+// 	document.addEventListener('DOMContentLoaded', function () {
+// 		var passwordInput = document.getElementById('user_password');
+
+// 		// Crear el texto de advertencia
+// 		var warningText = document.createElement('div');
+// 		warningText.textContent = '(8 characters, one capital letter, number and special symbol)';
+// 		warningText.style.color = '#c83e3e';
+// 		warningText.style.fontSize = '14px';
+// 		warningText.style.marginTop = '5px';
+
+// 		// Insertar el texto después del input
+// 		passwordInput.insertAdjacentElement('afterend', warningText);
+// 	});
+// 	</script>
+// 	";
+// 	return $content;
+// }
+
+add_filter('the_content', 'personalizar_pagina_registro');
+
+function personalizar_pagina_registro($content) {
+	if (!is_page('register')) return $content;
+
+	libxml_use_internal_errors(true);
+
+	$dom = new DOMDocument();
+	$dom->loadHTML(mb_convert_encoding($content, 'HTML-ENTITIES', 'UTF-8'));
+	$xpath = new DOMXPath($dom);
+
+	// Ocultar y marcar solo el checkbox de PRIVACIDAD
+	$privacyInput = $xpath->query('//input[@type="checkbox" and @id="privacy"]')->item(0);
+	if ($privacyInput) {
+		$privacyInput->setAttribute('style', 'display:none;');
+		$privacyInput->setAttribute('checked', 'checked');
+	}
+
+// 	// Cambiar el texto del label del checkbox de privacidad
+// 	$privacyLabel = $xpath->query('//label[@for="privacy"]')->item(0);
+// 	if ($privacyLabel) {
+// 		$privacyLabel->firstChild->nodeValue = 'To register means that I have read and accept the ';
+// 	}
+	// Obtener HTML procesado
+	$body = $dom->getElementsByTagName('body')->item(0);
+	$newContent = '';
+	foreach ($body->childNodes as $child) {
+		$newContent .= $dom->saveHTML($child);
+	}
+	
+	$search = 'I have read and accept the';
+	$replacement = 'To register means that I have read and accept the';
+	$newContent = str_replace($search, $replacement, $newContent);
+	
+	
+	$search = '<fieldset class="fieldset-mailerlite_subscribe_game';
+	$replacement = '<h2 style="text-decoration: underline; text-transform: uppercase;">Select Your Interests</h2><fieldset class="fieldset-mailerlite_subscribe_game';
+	$newContent = str_replace($search, $replacement, $newContent);
+	
+
+	// Agregar advertencia en campo de contraseña
+	$newContent .= "
+	<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		var passwordInput = document.getElementById('user_password');
+		if (passwordInput) {
+			var warningText = document.createElement('div');
+			warningText.textContent = '(8 characters, one capital letter, number and special symbol)';
+			warningText.style.color = '#c83e3e';
+			warningText.style.fontSize = '14px';
+			warningText.style.marginTop = '5px';
+			passwordInput.insertAdjacentElement('afterend', warningText);
+		}
+	});
+	</script>
+	";
+
+	return $newContent;
+}
+
 
 
 /***********************************************************************************************************************/
@@ -732,7 +1392,6 @@ add_filter('the_content', 'disable_lazy_load_for_specific_images');
 add_action('woocommerce_before_cart_totals', function() {
     echo '<a href="https://championsrenaissance.com/product-shop/?wlfilter=1&woolentor_product_cat=books" class="button wc-backward" style="display: flex; float: right; margin-bottom: 20px; right: 0; flex-wrap: nowrap; width: max-content; justify-content: flex-end; flex-direction: row;">Add other product</a>';
 });
-
 
 /***********************************************************************************************************************/
 /*													ADD EYE PASSWORD
@@ -927,5 +1586,27 @@ function replace_sign_in_sign_up_text($content) {
 
     return $content;
 }
+
+add_filter('the_content', 'replace_sign_in_sign_up_text');
+
+
+
+/*********************************************************************************************************************************************/
+/*														VER TODOS LOS HOOKS DE LA PAGINA
+/*********************************************************************************************************************************************/
+
+// add_action('all', function($hook) {
+//     if (
+//         strpos($hook, 'wpum') !== false || // cualquier hook de WP User Manager
+//         strpos($hook, 'elementor') !== false || // algo que Elementor pueda usar
+//         strpos($hook, 'form') !== false // cualquier cosa de formulario
+//     ) {
+//         echo "<div style='font-size:10px;color:red;'>Hook activo: {$hook}</div>";
+//     }
+// });
+
+
+// wpum_before_submit_button_registration_form
+
 
 add_filter('the_content', 'replace_sign_in_sign_up_text');
