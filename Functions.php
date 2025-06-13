@@ -882,6 +882,172 @@ add_action('wp_footer', function () {
 /************************************************************************************/
 
 
+
+
+
+// add_action('woocommerce_product_query', 'ordenar_productos_por_priority');
+// function ordenar_productos_por_priority($query) {
+//     // Asegura que no se aplique en el admin
+//     if (is_admin() || !$query->is_main_query()) {
+//         return;
+//     }
+
+//     $meta_query = $query->get('meta_query');
+//     if (!is_array($meta_query)) {
+//         $meta_query = array();
+//     }
+
+//     // Solo incluir productos que tienen el campo 'priority'
+//     $meta_query[] = array(
+//         'key'     => 'priority',
+//         'compare' => 'EXISTS',
+//     );
+
+//     $query->set('meta_query', $meta_query);
+
+//     // Ordenar por prioridad y luego por fecha (cambiable)
+//     $query->set('meta_key', 'priority');
+//     $query->set('orderby', array(
+//         'meta_value_num' => 'ASC', // Cambia a DESC si quieres invertir
+//         'date' => 'DESC'
+//     ));
+// }
+
+// function ordenar_por_existencia_priority($clauses, $query) {
+//     global $wpdb;
+
+//     if (!is_admin() && is_page('produc
+
+
+// add_filter('posts_clauses', 'ordenar_priority_null_al_final', 10, 2);
+// function ordenar_priority_null_al_final($clauses, $query) {
+//     if (!is_admin() && $query->is_main_query() && is_post_type_archive('product')) {
+//         global $wpdb;
+
+//         // Agregar LEFT JOIN si no está ya incluido
+//         if (strpos($clauses['join'], 'priority_meta') === false) {
+//             $clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS priority_meta 
+//                                   ON ({$wpdb->posts}.ID = priority_meta.post_id AND priority_meta.meta_key = 'priority')";
+//         }
+
+//         // Sobrescribir el ORDER BY para usar COALESCE y mover NULL al final
+//         $clauses['orderby'] = "COALESCE(priority_meta.meta_value + 0, 999999) ASC, {$wpdb->posts}.post_date DESC";
+//     }
+
+//     return $clauses;
+// }
+
+
+	// Ordenar por campo meta 'priority', ascendente
+//     Los productos sin 'priority' aparecerán al final
+
+
+// add_action('woocommerce_product_query', 'ordenar_productos_por_priority');
+// function ordenar_productos_por_priority($query) {
+//     if (!is_page('product-shop')) {
+//         $meta_query = $query->get('meta_query') ?: [];
+
+//         $meta_query[] = array(
+//             'relation' => 'OR',
+//             array(
+//                 'key'     => 'priority',
+//                 'compare' => 'EXISTS',
+//             ),
+//             array(
+//                 'key'     => 'priority',
+//                 'compare' => 'NOT EXISTS',
+//             ),
+//         );
+
+//         $query->set('meta_query', $meta_query);
+//         $query->set('orderby', 'priority_ordenada date');
+//     }
+// }
+
+// // Modifica directamente la cláusula SQL para que los NULL se consideren como 0
+// add_filter('posts_clauses', 'ordenar_priority_null_como_cero', 10, 2);
+// function ordenar_priority_null_como_cero($clauses, $query) {
+
+//     if (is_page('product-shop')) return $clauses;
+
+//     global $wpdb;
+
+//     // Añade un LEFT JOIN a la tabla postmeta para traer el campo 'priority'
+//     $clauses['join'] .= " LEFT JOIN $wpdb->postmeta AS priority_meta ON ($wpdb->posts.ID = priority_meta.post_id AND priority_meta.meta_key = 'priority')";
+
+//     // Ordena usando COALESCE para tratar los NULL como 0
+//     $clauses['orderby'] = "COALESCE(priority_meta.meta_value + 0, 0) ASC, $wpdb->posts.post_date ASC";
+
+//     return $clauses;
+// }
+// add_filter('posts_clauses', 'ordenar_priority_null_al_final', 10, 2);
+// function ordenar_priority_null_al_final($clauses, $query) {
+//     // Solo afecta al loop principal en product-shop
+//     if (!is_admin() && is_main_query() && is_post_type_archive('product') && is_page('product-shop')) {
+//         global $wpdb;
+
+//         // Asegúrate de no duplicar el join si ya existe
+//         if (strpos($clauses['join'], 'priority_meta') === false) {
+//             $clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS priority_meta 
+//                                   ON ({$wpdb->posts}.ID = priority_meta.post_id AND priority_meta.meta_key = 'priority')";
+//         }
+
+//         // Usa COALESCE para que los NULL sean tratados como un número grande
+//         $clauses['orderby'] = "COALESCE(priority_meta.meta_value + 0, 999999) ASC, {$wpdb->posts}.post_date DESC";
+//     }
+
+//     return $clauses;
+// }
+
+
+// add_action('woocommerce_product_query', 'ordenar_productos_por_priority');
+
+// function ordenar_productos_por_priority($query) {
+//     if (!is_page('product-shop')) {
+//         // Meta query: primero los productos con 'priority', luego los que no lo tienen
+//         $query->set('meta_query', array(
+//             'relation' => 'OR',
+//             array(
+//                 'key'     => 'priority',
+//                 'compare' => 'EXISTS',
+//             ),
+//             array(
+//                 'key'     => 'priority',
+//                 'compare' => 'NOT EXISTS',
+//             ),
+//         ));
+
+//         // Orden: los que tienen prioridad primero (por valor numérico), luego los demás por fecha
+//         $query->set('meta_key', 'priority');
+//         $query->set('orderby', array(
+//             'meta_value_num' => 'ASC',
+//             'date'           => 'DESC',
+//         ));
+//     }
+// }
+
+// add_action('woocommerce_product_query', 'ordenar_productos_por_priority');
+// function ordenar_productos_por_priority($query) {
+//     if (! is_page('product-shop')) {
+//         return; // Solo aplicar en tienda o categorías
+//     }
+
+//     $query1 = $query;
+//     $query1->set('meta_key', 'priority');
+//     $query1->set('orderby', array(
+//         'meta_value_num' => 'ASC',
+//         'date' => 'ASC' // Orden secundario por fecha descendente
+//     ));
+//     $query2 = $query;
+//     $query2->set('meta_key', 'priority');
+//     $query2->set('orderby', array(
+//         'meta_value_num' => 'ASC',
+//         'date' => 'ASC' // Orden secundario por fecha descendente
+//     ));
+// 	$query = array_merge($query1, $query2);
+// }
+
+
 // function add_languages_to_products() {
 //     global $product;
 //     $languages = get_post_meta( $product->get_id(), 'languages', true );
@@ -967,30 +1133,272 @@ add_filter('woocommerce_loop_add_to_cart_link', function($button, $product) {
 
 /************************************************************************************************************************/
 
+// add_action('woocommerce_product_query', 'ordenar_productos_por_priority');
+// function ordenar_productos_por_priority($query) {
+//     // Ordenar por el campo personalizado 'priority', los que no lo tengan van al final
+//     $query->set('meta_key', 'priority');
+//     $query->set('orderby', array(
+//         'meta_value_num' => 'DESC',
+//         'priority' => 'DESC' // Puedes cambiar este secundario si quieres
+//     ));
+// }
 
-add_action('woocommerce_product_query', function($q) {
-    if (!is_page('product-shop')) return;
+// add_action('woocommerce_product_query', function($q) {
+//     if (!is_page('product-shop')) return;
 
-    $meta_query = $q->get('meta_query') ?: [];
+//     $meta_query = $q->get('meta_query') ?: [];
 	
-	$meta_query[] = [
-        'relation' => 'OR', // Usamos 'OR' para combinar las dos condiciones
-        [
-            'key'     => 'is_featured_product',
-            'value'   => 'yes',
-            'compare' => 'NOT EXISTS',
-        ],
-        [
-            'key'     => 'is_featured_product',
-            'value'   => 'yes',
-            'compare' => 'EXISTS',
-        ]
-    ];
+// 	$meta_query[] = [
+//         'relation' => 'OR', // Usamos 'OR' para combinar las dos condiciones
+//         [
+//             'key'     => 'is_featured_product',
+//             'value'   => 'yes',
+//             'compare' => 'NOT EXISTS',
+//         ],
+//         [
+//             'key'     => 'is_featured_product',
+//             'value'   => 'yes',
+//             'compare' => 'EXISTS',
+//         ]
+//     ];
 
-    $q->set('orderby', 'meta_value');
-    $q->set('order', 'DESC');
-    $q->set('meta_query', $meta_query);
-});
+//     $q->set('orderby', 'meta_value');
+//     $q->set('order', 'DESC');
+//     $q->set('meta_query', $meta_query);
+// });
+
+
+add_action('woocommerce_product_query', 'ordenar_productos_por_priority');
+function ordenar_productos_por_priority($query) {
+    if (!is_admin() && is_main_query() && is_page('product-shop')) {
+        $meta_query = $query->get('meta_query') ?: [];
+
+        // Aseguramos que se incluyan productos con o sin featured (no filtramos nada, solo usamos para join)
+        $meta_query[] = [
+            'relation' => 'OR',
+            [
+                'key'     => 'is_featured_product',
+                'compare' => 'EXISTS',
+            ],
+            [
+                'key'     => 'is_featured_product',
+                'compare' => 'NOT EXISTS',
+            ]
+        ];
+
+        $query->set('meta_query', $meta_query);
+        $query->set('orderby', 'orden_custom');
+    }
+}
+
+add_filter('woocommerce_get_catalog_ordering_args', 'forzar_ordenamiento_por_priority');
+function forzar_ordenamiento_por_priority($args) {
+    if (is_page('product-shop')) {
+        $args['orderby']  = 'orden_custom';
+        $args['order']    = 'ASC';
+        $args['meta_key'] = '';
+    }
+    return $args;
+}
+
+add_filter('posts_clauses', 'ordenar_featured_y_priority', 10, 2);
+function ordenar_featured_y_priority($clauses, $query) {
+    if (!is_page('product-shop')) {
+        return $clauses;
+    }
+
+    global $wpdb;
+
+    // JOIN a 'priority'
+    $clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS pm_priority ON ({$wpdb->posts}.ID = pm_priority.post_id AND pm_priority.meta_key = 'priority')";
+
+    // JOIN a 'is_featured_product'
+    $clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS pm_featured ON ({$wpdb->posts}.ID = pm_featured.post_id AND pm_featured.meta_key = 'is_featured_product')";
+
+    // Ordenar primero por destacados ('yes' como 1, else 0), luego por priority DESC, luego fecha
+    $clauses['orderby'] = "
+        CASE WHEN pm_featured.meta_value = 'yes' THEN 100 END DESC,
+        COALESCE(pm_priority.meta_value + 0, 0) DESC,
+        {$wpdb->posts}.post_date DESC
+    ";
+    return $clauses;
+}
+
+
+//*******
+// add_action('woocommerce_product_query', 'ordenar_productos_por_priority');
+// function ordenar_productos_por_priority($query) {
+//     if (is_page('product-shop')) {
+//         // No filtrar por priority, solo asegurarse de que todos entren
+//         $meta_query = $query->get('meta_query') ?: [];
+
+//         // (Opcional) mantener tus filtros de is_featured_product si lo necesitas
+//         $meta_query[] = [
+//             'relation' => 'OR',
+//             [
+//                 'key'     => 'is_featured_product',
+//                 'value'   => 'yes',
+//                 'compare' => 'NOT EXISTS',
+//             ],
+//             [
+//                 'key'     => 'is_featured_product',
+//                 'value'   => 'yes',
+//                 'compare' => 'EXISTS',
+//             ]
+//         ];
+
+//         $query->set('meta_query', $meta_query);
+//         $query->set('orderby', 'orden_priority date');
+//     }
+// }
+
+// add_filter('woocommerce_get_catalog_ordering_args', 'forzar_ordenamiento_por_priority');
+// function forzar_ordenamiento_por_priority($args) {
+//     // Esto evita que WooCommerce sobreescriba nuestro orden
+//     $args['orderby'] = 'orden_priority';
+//     $args['order'] = 'DESC';
+//     $args['meta_key'] = ''; // No usaremos meta_key directamente aquí
+//     return $args;
+// }
+
+// // Filtro SQL para ordenar usando priority y asumir 0 si no está definido
+// add_filter('posts_clauses', 'ordenar_priority_con_fallback', 10, 2);
+// function ordenar_priority_con_fallback($clauses, $query) {
+//     if (is_admin() || !$query->is_main_query()) return $clauses;
+//     if (!is_page('product-shop')) return $clauses;
+
+//     global $wpdb;
+
+//     // JOIN con priority (incluso si no existe)
+//     $clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS pm_priority ON ({$wpdb->posts}.ID = pm_priority.post_id AND pm_priority.meta_key = 'priority')";
+
+//     // COALESCE convierte NULL a 0, asegurando que los "unset" aparezcan con prioridad 0
+//     $clauses['orderby'] = "COALESCE(pm_priority.meta_value + 0, 0) DESC, {$wpdb->posts}.post_date DESC";
+
+//     return $clauses;
+// }
+//*************
+
+//MAS ACERCADO
+// add_action('woocommerce_product_query', 'ordenar_productos_personalizado');
+// function ordenar_productos_personalizado($query) {
+//     // Solo aplicar en la página product-shop
+//     if (is_page('product-shop')) {
+//         $meta_query = $query->get('meta_query') ?: [];
+        
+//         $meta_query[] = [
+//             'relation' => 'OR',
+//             [
+//                 'key'     => 'is_featured_product',
+//                 'value'   => 'yes',
+//                 'compare' => 'NOT EXISTS',
+//             ],
+//             [
+//                 'key'     => 'is_featured_product',
+//                 'value'   => 'yes',
+//                 'compare' => 'EXISTS',
+//             ]
+//         ];
+        
+//         $query->set('meta_query', $meta_query);
+//     }
+
+//     // Configurar el ordenamiento por priority (los no definidos se tratan como 0)
+//     $query->set('meta_query', array_merge(
+//         (array)$query->get('meta_query') ?: [],
+//         [
+//             'priority_clause' => [
+//                 'key' => 'priority',
+//                 'compare' => 'EXISTS',
+//                 'type' => 'NUMERIC'
+//             ]
+//         ]
+//     ));
+
+//     $query->set('orderby', [
+//         'priority_clause' => 'DESC', // Ordena por priority (los no definidos irán al final)
+//         'date' => 'DESC' // Orden secundario por fecha (puedes cambiarlo)
+//     ]);
+// }
+
+
+// add_action('woocommerce_product_query', 'personalizar_consulta_productos');
+// function personalizar_consulta_productos($query) {
+//     // Primera parte: ordenar por prioridad
+//     $query->set('meta_key', 'priority');
+//     $query->set('orderby', array(
+//         'meta_value_num' => 'DESC',
+//         'priority' => 'DESC'
+//     ));
+    
+//     // Segunda parte: lógica especial para la página 'product-shop'
+//     if (is_page('product-shop')) {
+//         $meta_query = $query->get('meta_query') ?: [];
+        
+//         $meta_query[] = [
+//             'relation' => 'OR',
+//             [
+//                 'key'     => 'is_featured_product',
+//                 'value'   => 'yes',
+//                 'compare' => 'NOT EXISTS',
+//             ],
+//             [
+//                 'key'     => 'is_featured_product',
+//                 'value'   => 'yes',
+//                 'compare' => 'EXISTS',
+//             ]
+//         ];
+
+//         $query->set('orderby', 'meta_value');
+//         $query->set('order', 'DESC');
+//         $query->set('meta_query', $meta_query);
+//     }
+// }
+
+
+// add_action('woocommerce_product_query', function($q) {
+//     if (!is_page('product-shop')) return;
+
+//     $meta_query = $q->get('meta_query') ?: [];
+	
+// 	$meta_query[] = [
+//         'relation' => 'OR', // Usamos 'OR' para combinar las dos condiciones
+//         [
+//             'key'     => 'is_featured_product',
+//             'value'   => 'yes',
+//             'compare' => 'NOT EXISTS',
+//         ],
+//         [
+//             'key'     => 'is_featured_product',
+//             'value'   => 'yes',
+//             'compare' => 'EXISTS',
+//         ]
+//     ];
+
+//     $q->set('orderby', 'meta_value');
+//     $q->set('order', 'DESC');
+//     $q->set('meta_query', $meta_query);
+// });
+// 
+
+
+
+
+// $meta_query = $q->get('meta_query') ?: [];
+	
+// 	$meta_query[] = [
+//         'relation' => 'OR', // Usamos 'OR' para combinar las dos condiciones
+//         [
+//             'key'     => 'is_featured_product',
+//             'value'   => 'yes',
+//             'compare' => 'NOT EXISTS',
+//         ],
+//         [
+//             'key'     => 'is_featured_product',
+//             'value'   => 'yes',
+//             'compare' => 'EXISTS',
+//         ]
+//     ];
 
 //OPTION 1
 add_action( 'woocommerce_before_shop_loop_item_title', 'add_featured_class_to_product', 25 );
@@ -1209,6 +1617,282 @@ function mostrar_html_flotante_en_urls_personalizadas() {
             <?php
         }
         if (preg_match('#/(book-one-exceptional-mind/en/index|book-one-exceptional-mind/es/index)/#', $url_actual)) {
+            ?>
+            <div id="home_btn_container" style="
+            ">
+				<a id="home_btn" href="https://championsrenaissance.com/product-shop/?wlfilter=1&woolentor_product_cat=books" style = "">
+					Exit
+				</a>
+			</div>
+			<style>
+				#home_btn{
+					color: black;
+					font-family: 'Arial';
+					
+					color: black;
+					font-weight: 800;
+					font-size:18px;
+					background: #fff;
+					padding: 9px 20px !important;
+
+					font-weight: 600;
+					font-size:18px;
+					background: #fff;
+					padding: 5px 20px;
+					z-index: 1;
+					bottom: -10px;
+					border: none;
+					box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-webkit-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-moz-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					
+					background: #3A1953;
+					color: #fff;
+					
+					background: #fff;
+					color: #000;
+				}
+				#home_btn_container {
+					position: fixed;
+					bottom: 0;
+					z-index: 9999;
+					width: 15%;
+					right: 58px;
+				}
+				@media only screen and (max-width: 768px) {
+					#home_btn_container {
+						right: 35px !important;
+					}
+				}
+			</style>
+            <?php
+		}
+    }
+}
+
+/***********************************************************************************************************************/
+
+/*											BOTON INCIO SEGUNDO LIBRO ONLINE
+
+/***********************************************************************************************************************/
+add_action('wp_footer', 'mostrar_html_flotante_en_urls_personalizadas1');
+
+function mostrar_html_flotante_en_urls_personalizadas1() {
+    if (is_singular()) {
+        $url_actual = $_SERVER['REQUEST_URI'];
+		
+        $urls_permitidas = [
+            '/champions-renaissance-book-prologue/',
+            '/champions-renaissance-book-preface/',
+            '/champions-renaissance-book-introduction/',
+            '/champions-renaissance-book-base-1-of-mount-everest-allegory/',
+            '/champions-renaissance-book-part-1-summary-unfreeze/',
+            '/champions-renaissance-book-part-1-unfreeze-chapter-1/',
+            '/champions-renaissance-book-part-1-unfreeze-chapter-2/',
+            '/champions-renaissance-book-part-1-unfreeze-chapter-3/',
+            '/champions-renaissance-book-part-1-unfreeze-chapter-4/',
+            '/champions-renaissance-book-base-2-of-mount-everest-allegory/',
+            '/champions-renaissance-book-part-2-summary-change/',
+            '/champions-renaissance-book-part-2-change-chapter-5/',
+            '/champions-renaissance-book-part-2-change-chapter-6/',
+            '/champions-renaissance-book-part-2-change-chapter-7/',
+            '/champions-renaissance-book-part-2-change-chapter-8/',
+            '/champions-renaissance-book-part-2-change-chapter-9/',
+            '/champions-renaissance-book-part-2-change-chapter-10/',
+            '/champions-renaissance-book-part-2-change-chapter-11/',
+            '/champions-renaissance-book-base-3-of-mount-everest-allegory/',
+            '/champions-renaissance-book-part-3-summary-refreeze/',
+            '/champions-renaissance-book-part-3-refreeze-champions-constitution/',
+            '/champions-renaissance-book-part-3-refreeze-leverage/',
+            '/champions-renaissance-book-part-3-refreeze-pay-the-price/',
+            '/champions-renaissance-book-part-3-refreeze-roadmap-to-psychoespistemology/',
+            '/champions-renaissance-book-part-3-refreeze-roadmap-to-strategy/',
+            '/champions-renaissance-book-part-3-refreeze-mind-body-control-excercises/',
+            '/champions-renaissance-book-summit-of-mount-everest-allegory/',
+            '/champions-renaissance-book-final-conclusion/',
+            '/champions-renaissance-book-a-new-renaissance/',
+            '/champions-renaissance-book-annex-acclimatization-tools-summary/',
+            '/champions-renaissance-book-annex-tool-1-the-game/',
+            '/champions-renaissance-book-annex-tool-2-famous-quotes/',
+            '/champions-renaissance-book-annex-tool-3-bibliography/',
+        ];
+
+        // CAMBIAR AQUI
+        if (in_array($url_actual, $urls_permitidas)) {
+            ?>
+            <div style="
+                position: fixed;
+                bottom: 5px;
+                right: 20px;
+                z-index: 9999;
+				width: 15%;
+            ">
+				<button id="index_btn">
+					Index
+				</button>
+				<button id="exit_btn" onclick="window.location.href='https://championsrenaissance.com/product-shop/?wlfilter=1&woolentor_product_cat=books';">
+					Exit
+				</button>
+				
+				 <nav class="main-menu">
+					 <button onclick="closePopupIndex()" style="color: black; font-size: 12px; border: 1px solid black; padding: 7px; border-radius:30px; display: flex; margin: auto; margin-right: 0;"><img src="https://championsrenaissance.com/wp-content/uploads/2025/05/7560626.png" style="width: 22px;"></button>
+					<div class="settings"></div>
+					<?php if (in_array($url_actual, $urls_permitidas)) { ?>
+					 <h3 style="text-align: center; text-transform: uppercase; font-family: 'Times New Roman'; font-weight: bold;">Index</h3>
+					 <?php echo do_shortcode('[wpcode id="40821"]'); ?>
+					<?php } ?>
+				 </nav>
+			</div>
+			<script>
+				function closePopupIndex() {
+					const index_popup = document.querySelector(".main-menu");
+					if (index_popup.style.display === "none" || index_popup.style.display === "") {
+						index_popup.style.display = "block";
+					} else {
+						index_popup.style.display = "none";
+					}
+				}
+			  document.addEventListener("DOMContentLoaded", function () {
+				const index_btn = document.querySelector("#index_btn");
+				const index_popup = document.querySelector(".main-menu");
+
+				if (!index_btn || !index_popup) return;
+
+				index_btn.addEventListener("click", function () {
+				  if (index_popup.style.display === "none" || index_popup.style.display === "") {
+					index_popup.style.display = "block";
+				  } else {
+					index_popup.style.display = "none";
+				  }
+				});
+			  });
+			</script>
+
+			<style>
+				.main-menu, nav.main-menu.expanded {
+					display: none;
+					top:0;
+					bottom:0;
+					left: 0;
+					right:0;
+					width: 45%;
+					height: 85%;
+					margin: auto;
+					position: fixed;
+					overflow:hidden;
+					overflow-y: auto;   
+					background:#efefef;
+					border-radius: 30px;
+					border: 1px solid #cfcfcf;
+					transition:width .2s linear;
+					-webkit-transition:width .2s linear;
+					-webkit-transform:translateZ(0) scale(1,1);
+					box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
+					opacity:1;
+				}
+
+				@media only screen and (max-width: 768px) {
+					.main-menu {
+						width:83%;
+						height: 80%;
+						box-shadow: 0 0 20px rgba(0, 0, 0, 0.25);
+					}
+				}
+
+				/* STYLES FROM CHRE*/
+				nav{
+				  padding: 30px;
+				  overflow: hidden;
+				}
+
+				.toggle-list-1 {
+				  display: none;
+				}
+				.toggle-list-2 {
+				  display: none;
+				}
+				.toggle-list-3 {
+				  display: none;
+				}
+
+				/* *************** */
+				.elementor-button-wrapper {
+				  margin: auto;
+				}
+
+				button.toggle-button{
+				  padding: 12px 24px !important;
+				}
+
+				a.elementor-button.elementor-button-index, button.toggle-button {
+				  background: #FAC334C9;
+				  display:block;
+				  color: black;
+				  box-shadow: 0px 0px 7px 0px rgba(0, 0, 0, 0.25);
+				  font-family: "Times New Roman", Sans-serif;
+				  font-size: 22px; 
+				  background: #FAC334C9;
+				  width: 90%;
+				  margin: auto;
+				  margin-top: 20px;
+				  border-radius: 15px;
+				  border-width: 0;
+				/* padding: 12px 24px !important; */
+				}
+				a.elementor-button:hover, .toggle-button:hover {
+				  background: #FAC334C9;
+				  color:black;
+				  cursor: hand;
+				}
+				#index_btn, #exit_btn{
+					color: black;
+					font-family: 'Arial';
+
+					font-weight: 600;
+					font-size: 18px;
+					background: #fff;
+					padding: 5px 20px;
+					z-index: 1;
+					position: relative;
+					bottom: -10px;
+					border: none;
+					box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-webkit-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					-moz-box-shadow: 0px 0px 9px rgba(0, 0, 0, 0.3);
+					
+					background: #3A1953;
+					color: #fff;
+					background: #fff;
+					color: #000;
+					
+					width: 80px;
+				}
+				#exit_btn {
+					background: #fff;
+					color: #000;
+				}
+				@media only screen and (max-width: 768px) {
+/* 					#index_btn {
+						right: 110px;
+						bottom: -5px;
+						position: fixed;
+					}
+					#exit_btn {
+						right: 32px;
+					} */
+					#index_btn {
+						right:26px;
+					}
+					#exit_btn {
+						right: 110px;
+						bottom: -5px;
+						position: fixed;
+					}
+				}
+			</style>
+            <?php
+        }
+        if (preg_match('#/(champions-renaissance-book-online/summary-index)/#', $url_actual)) {
             ?>
             <div id="home_btn_container" style="
             ">
@@ -1607,6 +2291,3 @@ add_filter('the_content', 'replace_sign_in_sign_up_text');
 
 
 // wpum_before_submit_button_registration_form
-
-
-add_filter('the_content', 'replace_sign_in_sign_up_text');
